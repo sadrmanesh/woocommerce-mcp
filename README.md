@@ -4,12 +4,16 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Node.js](https://img.shields.io/badge/node-%3E%3D20-339933)
 [![Docs](https://img.shields.io/badge/docs-sadrmanesh.github.io-7e57c2)](https://sadrmanesh.github.io/woocommerce-mcp/)
+[![npm](https://img.shields.io/npm/v/@sadrmanesh/woocommerce-mcp)](https://www.npmjs.com/package/@sadrmanesh/woocommerce-mcp)
+[![MCP Registry](https://img.shields.io/badge/MCP%20Registry-io.github.sadrmanesh%2Fwoocommerce--mcp-0a7d5a)](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.sadrmanesh/woocommerce-mcp)
 
 A [Model Context Protocol](https://modelcontextprotocol.io) server for running one or more WooCommerce stores through the WooCommerce REST API. MCP clients can browse the catalog, work through and fulfill orders, issue refunds, adjust prices and stock in bulk, run promotions, segment customers, react to webhooks, and read sales analytics. Every change is previewed before it is applied and can be written to an audit log.
 
 It runs locally over stdio, or as a remote service over streamable HTTP with bearer-token or OAuth 2.0 authentication, and ships with a Docker image definition.
 
 **Documentation:** <https://sadrmanesh.github.io/woocommerce-mcp/>
+
+Listed on the [official MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.sadrmanesh/woocommerce-mcp) as `io.github.sadrmanesh/woocommerce-mcp`.
 
 ## Contents
 

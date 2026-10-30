@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-30
+
+### Added
+
+- The release workflow publishes `server.json` to the official MCP Registry after each npm release, signing in with GitHub OIDC. The job checks that `server.json` matches the tag and waits until the package is visible on npm.
+- npm and MCP Registry badges in the README, and registry details in the install guide.
+
+### Changed
+
+- `server.json` and the package version are now 0.3.1.
+
 ## [0.3.0] - 2026-10-30
 
 ### Added
@@ -73,7 +84,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configuration through environment variables, documented in `.env.example`.
 - Tests with mocked HTTP, ESLint, and a GitHub Actions workflow.
 
-[Unreleased]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/sadrmanesh/woocommerce-mcp/releases/tag/v0.1.0
