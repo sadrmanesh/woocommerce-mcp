@@ -34,6 +34,12 @@ Define tools with `defineTool` from `src/tools/registry.ts`. Mark write tools wi
 3. The release workflow runs `npm run check`, confirms the tag matches the package version, and publishes to npm with the `NPM_TOKEN` repository secret. Without the secret it stops before publishing.
 4. After npm, it publishes `server.json` to the MCP Registry, the same package to GitHub Packages, and a multi-architecture Docker image to `ghcr.io/sadrmanesh/woocommerce-mcp` tagged `X.Y.Z`, `X.Y`, and `latest`. GitHub Packages and GHCR use the workflow's `GITHUB_TOKEN`.
 
+The release workflow also copies the GHCR image, for every platform, to Docker Hub as `docker.io/<DOCKERHUB_USERNAME>/woocommerce-mcp` with the same `X.Y.Z`, `X.Y`, and `latest` tags. This job runs only when the `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` repository secrets are set, and skips with a notice otherwise.
+
+## Mirrors
+
+`.github/workflows/mirror.yml` pushes `main` and every tag to `gitlab.com/sadrmanesh/woocommerce-mcp`. It runs only when the `GITLAB_TOKEN` repository secret is set (a GitLab access token with the `write_repository` scope) and skips with a notice otherwise. Set the `GITLAB_NAMESPACE` repository variable to mirror to another GitLab namespace. GitHub stays the main repository for issues and pull requests.
+
 ## Reporting issues
 
 Use the bug and feature templates. Include the server version, Node.js version, and transport (`stdio` or streamable HTTP). Redact consumer keys, secrets, and customer data from logs.
