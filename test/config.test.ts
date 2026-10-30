@@ -22,7 +22,7 @@ describe('loadConfig', () => {
     assert.equal(config.timeoutMs, 30_000);
     assert.equal(config.httpHost, '127.0.0.1');
     assert.equal(config.httpPath, '/mcp');
-    assert.equal(config.userAgent, 'woocommerce-mcp/0.3.1');
+    assert.equal(config.userAgent, 'woocommerce-mcp/0.3.2');
     assert.equal(config.requireConfirmation, true);
     assert.equal(config.auditLog, null);
     assert.equal(config.telemetry, false);

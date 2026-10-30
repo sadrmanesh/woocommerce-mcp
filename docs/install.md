@@ -6,6 +6,7 @@ woocommerce-mcp works with any MCP host that can start a stdio server or connect
 | --- | --- |
 | [npx](#npx) | A desktop host on a machine with Node.js 20 or newer |
 | [Docker](#docker) | Hosts without Node.js, or isolated deployments |
+| [GitHub Packages](#github-packages) | Teams that already install npm packages from GitHub |
 | [Smithery](#smithery) | Hosts that install servers from the Smithery catalog |
 | [MCP Registry](#mcp-registry) | Hosts and catalogs that read the official MCP Registry |
 | [HTTP](#remote-http) | One shared server for several users or hosts |
@@ -32,14 +33,17 @@ Add this to your host's MCP server settings. Most hosts use an `mcpServers` map 
 }
 ```
 
-Pin a version with `"@sadrmanesh/woocommerce-mcp@0.3.1"` to control upgrades. Add any variable from [Configuration](configuration.md) to `env`, for example `"WOOCOMMERCE_REDACT_PII": "true"`.
+Pin a version with `"@sadrmanesh/woocommerce-mcp@0.3.2"` to control upgrades. Add any variable from [Configuration](configuration.md) to `env`, for example `"WOOCOMMERCE_REDACT_PII": "true"`.
 
 ## Docker
 
+Every release publishes a multi-architecture image (`linux/amd64`, `linux/arm64`) to the GitHub Container Registry:
+
 ```bash
-git clone https://github.com/sadrmanesh/woocommerce-mcp.git
-docker build -t woocommerce-mcp woocommerce-mcp
+docker pull ghcr.io/sadrmanesh/woocommerce-mcp:0.3.2
 ```
+
+Tags are `X.Y.Z` for an exact release, `X.Y` for the newest patch of a minor version, and `latest`. The image runs as the unprivileged `node` user and carries OCI labels that link it to this repository.
 
 ```json
 {
@@ -52,7 +56,7 @@ docker build -t woocommerce-mcp woocommerce-mcp
         "-e", "WOOCOMMERCE_URL",
         "-e", "WOOCOMMERCE_CONSUMER_KEY",
         "-e", "WOOCOMMERCE_CONSUMER_SECRET",
-        "woocommerce-mcp"
+        "ghcr.io/sadrmanesh/woocommerce-mcp:0.3.2"
       ],
       "env": {
         "WOOCOMMERCE_URL": "https://store.example.com",
@@ -64,7 +68,22 @@ docker build -t woocommerce-mcp woocommerce-mcp
 }
 ```
 
-`-e NAME` without a value passes the variable through from `env`, so secrets stay out of `args`. For a long-running HTTP server, see [Deployment](deployment.md).
+`-e NAME` without a value passes the variable through from `env`, so secrets stay out of `args`. For a long-running HTTP server, see [Deployment](deployment.md). To build the image yourself instead, run `docker build -t woocommerce-mcp .` in a checkout and use `woocommerce-mcp` as the image name.
+
+## GitHub Packages
+
+The npm package is also published to GitHub Packages under the same name, `@sadrmanesh/woocommerce-mcp`. npmjs.com remains the main registry, and the other commands on this page use it. To install from GitHub Packages instead, point the `@sadrmanesh` scope at it in an `.npmrc` file. GitHub Packages asks for a token even for public packages: a personal access token (classic) with the `read:packages` scope.
+
+```ini
+@sadrmanesh:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${GITHUB_TOKEN}
+```
+
+```bash
+npm install -g @sadrmanesh/woocommerce-mcp
+```
+
+Keep the token in the `GITHUB_TOKEN` environment variable, not in the file.
 
 ## Smithery
 
