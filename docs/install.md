@@ -43,6 +43,12 @@ Every release publishes a multi-architecture image (`linux/amd64`, `linux/arm64`
 docker pull ghcr.io/sadrmanesh/woocommerce-mcp:0.3.2
 ```
 
+The same image, with the same tags, is on Docker Hub:
+
+```bash
+docker pull sadrmanesh/woocommerce-mcp:0.3.2
+```
+
 Tags are `X.Y.Z` for an exact release, `X.Y` for the newest patch of a minor version, and `latest`. The image runs as the unprivileged `node` user and carries OCI labels that link it to this repository.
 
 ```json

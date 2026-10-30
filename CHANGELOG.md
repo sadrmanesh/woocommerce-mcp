@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - An optional Docker Hub job in the release workflow. When the `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` secrets are set, it copies the released GHCR image to `docker.io/<username>/woocommerce-mcp` with the same tags. Without them it skips.
+- A tool explorer on Hugging Face, <https://huggingface.co/spaces/sadrmanesh/woocommerce-mcp-explorer>, that lists every tool, prompt, and resource with its input schema and builds `tools/call` requests. The README and docs link to it, and the README names the Docker Hub image `sadrmanesh/woocommerce-mcp`.
 - `.github/workflows/mirror.yml`, which mirrors `main` and tags to `gitlab.com/sadrmanesh/woocommerce-mcp` when the `GITLAB_TOKEN` secret is set, and skips cleanly otherwise.
 
 ## [0.3.2] - 2026-10-30
