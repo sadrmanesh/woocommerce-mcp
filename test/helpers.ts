@@ -1,26 +1,69 @@
-import type { AppConfig } from '../src/config.js';
-import type { ToolContext } from '../src/tools/context.js';
+import { type AuditLog, memoryAuditLog } from '../src/audit.js';
+import { type AppConfig, type ClientOptions, clientOptions, type StoreConfig } from '../src/config.js';
+import { createRuntime } from '../src/server.js';
+import type { Runtime, ToolContext } from '../src/tools/context.js';
 import { WooCommerceClient, type ClientHooks } from '../src/woocommerce/client.js';
 
-export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
+export function testStore(overrides: Partial<StoreConfig> = {}): StoreConfig {
   return {
+    id: 'default',
+    label: null,
     url: 'https://store.example.com',
     consumerKey: 'ck_test_key',
     consumerSecret: 'cs_test_secret',
     apiVersion: 'wc/v3',
+    authMode: 'basic',
     readOnly: true,
+    ...overrides,
+  };
+}
+
+export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
+  return {
+    stores: [testStore()],
+    defaultStore: 'default',
     timeoutMs: 5_000,
     maxRetries: 2,
     defaultPerPage: 10,
-    authMode: 'basic',
-    userAgent: 'woocommerce-mcp/0.1.0',
+    userAgent: 'woocommerce-mcp/0.2.0',
     debug: false,
+    requireConfirmation: true,
+    auditLog: null,
+    telemetry: false,
     transport: 'stdio',
     httpHost: '127.0.0.1',
     httpPort: 3_000,
     httpPath: '/mcp',
+    httpAllowedHosts: [],
+    httpAllowedOrigins: [],
+    httpAuth: null,
     ...overrides,
   };
+}
+
+export function testClientOptions(overrides: Partial<ClientOptions> = {}): ClientOptions {
+  return { ...clientOptions(testConfig(), testStore()), ...overrides };
+}
+
+export const testHooks = (fetchImpl: typeof fetch): ClientHooks => ({
+  fetchImpl,
+  sleep: async () => undefined,
+  random: () => 0,
+  nonce: () => 'nonce1234567890nonce1234567890',
+  timestamp: () => 1_700_000_000,
+});
+
+/** Builds a tool runtime whose stores all talk to the given fetch mock. */
+export function testRuntime(
+  fetchImpl: typeof fetch,
+  overrides: Partial<AppConfig> = {},
+  options: { audit?: AuditLog; scopesEnforced?: boolean } = {},
+): Runtime & { audit: AuditLog } {
+  return createRuntime(testConfig(overrides), {
+    hooks: testHooks(fetchImpl),
+    audit: options.audit ?? memoryAuditLog(),
+    ...(options.scopesEnforced !== undefined ? { scopesEnforced: options.scopesEnforced } : {}),
+  });
 }
 
 export const validEnv: Record<string, string> = {
@@ -70,17 +113,10 @@ export function createFetchMock(
 
 export function clientWith(
   fetchImpl: typeof fetch,
-  overrides: Partial<AppConfig> = {},
+  overrides: Partial<ClientOptions> = {},
   hooks: ClientHooks = {},
 ): WooCommerceClient {
-  return new WooCommerceClient(testConfig(overrides), {
-    fetchImpl,
-    sleep: async () => undefined,
-    random: () => 0,
-    nonce: () => 'nonce1234567890nonce1234567890',
-    timestamp: () => 1_700_000_000,
-    ...hooks,
-  });
+  return new WooCommerceClient(testClientOptions(overrides), { ...testHooks(fetchImpl), ...hooks });
 }
 
 export function toolContext(

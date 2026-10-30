@@ -3,43 +3,33 @@ import type * as z from 'zod/v4';
 
 import { expectArray, expectRecord, stripLinks } from '../woocommerce/json.js';
 import { summarizeCustomer } from '../woocommerce/present.js';
-import { pageQuery, type Page, type ToolContext } from './context.js';
+import { pageQuery, type Page, type Runtime, type ToolContext } from './context.js';
 import { toolNames } from './names.js';
-import { execute } from './result.js';
+import { defineTool, READ } from './registry.js';
 import { getCustomerInput, listCustomersInput } from './schemas.js';
-
-const readAnnotations = {
-  readOnlyHint: true,
-  destructiveHint: false,
-  idempotentHint: true,
-  openWorldHint: true,
-} as const;
 
 export type ListCustomersInput = z.infer<typeof listCustomersInput>;
 export type GetCustomerInput = z.infer<typeof getCustomerInput>;
 
-export function registerCustomerTools(server: McpServer, ctx: ToolContext): void {
-  server.registerTool(
-    toolNames.listCustomers,
-    {
-      title: 'List customers',
-      description: 'List customers. Returns id, name, email, role, and pagination. Customer records can contain personal data.',
-      inputSchema: listCustomersInput,
-      annotations: readAnnotations,
-    },
-    async (input) => execute(ctx, toolNames.listCustomers, false, () => listCustomers(ctx, input)),
-  );
-
-  server.registerTool(
-    toolNames.getCustomer,
-    {
-      title: 'Get customer',
-      description: 'Get one customer by ID, without the REST _links payload. The record can contain personal data.',
-      inputSchema: getCustomerInput,
-      annotations: readAnnotations,
-    },
-    async (input) => execute(ctx, toolNames.getCustomer, false, () => getCustomer(ctx, input)),
-  );
+export function registerCustomerTools(server: McpServer, runtime: Runtime): void {
+  defineTool(server, runtime, {
+    name: toolNames.listCustomers,
+    title: 'List customers',
+    description: 'List customers. Returns id, name, email, role, and pagination. Customer records can contain personal data.',
+    input: listCustomersInput,
+    annotations: READ,
+    write: false,
+    run: listCustomers,
+  });
+  defineTool(server, runtime, {
+    name: toolNames.getCustomer,
+    title: 'Get customer',
+    description: 'Get one customer by ID, without the REST _links payload. The record can contain personal data.',
+    input: getCustomerInput,
+    annotations: READ,
+    write: false,
+    run: getCustomer,
+  });
 }
 
 export async function listCustomers(

@@ -1,11 +1,14 @@
-import type { AppConfig } from '../config.js';
+import type { ClientOptions } from '../config.js';
+import { withSpan } from '../telemetry.js';
 import { createNonce, authorize } from './auth.js';
-import { WooCommerceApiError } from './errors.js';
+import { PlannedWrite, WooCommerceApiError } from './errors.js';
 import { isRecord } from './json.js';
 import { parseRetryAfter, readTotalHeader, type Pagination } from './pagination.js';
 
 const MAX_BODY_CHARS = 5_000_000;
 const MAX_RETRY_WAIT_MS = 10_000;
+
+export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
 export type QueryParams = Record<string, string | number | boolean | undefined>;
 
@@ -26,9 +29,18 @@ export interface ClientHooks {
 
 export class WooCommerceClient {
   constructor(
-    private readonly options: AppConfig,
+    private readonly options: ClientOptions,
     private readonly hooks: ClientHooks = {},
+    private readonly planWrites = false,
   ) {}
+
+  /**
+   * Returns a client that performs reads normally but stops at the first write
+   * and throws a {@link PlannedWrite} describing the request it would send.
+   */
+  planning(): WooCommerceClient {
+    return new WooCommerceClient(this.options, this.hooks, true);
+  }
 
   get<T = unknown>(path: string, query?: QueryParams): Promise<ApiResponse<T>> {
     return this.request<T>('GET', path, query, undefined);
@@ -42,13 +54,41 @@ export class WooCommerceClient {
     return this.request<T>('PUT', path, query, body ?? {});
   }
 
+  delete<T = unknown>(path: string, query?: QueryParams): Promise<ApiResponse<T>> {
+    return this.request<T>('DELETE', path, query, undefined);
+  }
+
   private async request<T>(
-    method: 'GET' | 'POST' | 'PUT',
+    method: HttpMethod,
     path: string,
     query: QueryParams | undefined,
     body: unknown,
   ): Promise<ApiResponse<T>> {
     const safePath = assertApiPath(path);
+    if (this.planWrites && method !== 'GET') {
+      throw new PlannedWrite({ method, path: safePath, query: normalizeQuery(query), body });
+    }
+    return withSpan(
+      `woocommerce ${method}`,
+      {
+        'http.request.method': method,
+        'woocommerce.path': routeTemplate(safePath),
+        'server.address': new URL(this.options.url).host,
+      },
+      async (span) => {
+        const response = await this.requestWithRetries<T>(method, safePath, query, body);
+        span.setAttribute('http.response.status_code', response.status);
+        return response;
+      },
+    );
+  }
+
+  private async requestWithRetries<T>(
+    method: HttpMethod,
+    safePath: string,
+    query: QueryParams | undefined,
+    body: unknown,
+  ): Promise<ApiResponse<T>> {
     let lastError: WooCommerceApiError | undefined;
     for (let attempt = 0; attempt <= this.options.maxRetries; attempt += 1) {
       try {
@@ -66,7 +106,7 @@ export class WooCommerceClient {
   }
 
   private async send<T>(
-    method: 'GET' | 'POST' | 'PUT',
+    method: HttpMethod,
     path: string,
     query: QueryParams | undefined,
     body: unknown,
@@ -219,6 +259,10 @@ function assertApiPath(path: string): string {
     throw new WooCommerceApiError('Refused to call an unsafe API path.', { code: 'invalid_path', status: 0 });
   }
   return path;
+}
+
+function routeTemplate(path: string): string {
+  return path.replace(/\/\d+(?=\/|$)/g, '/{id}');
 }
 
 function normalizeQuery(query: QueryParams | undefined): Record<string, string> {

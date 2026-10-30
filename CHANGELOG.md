@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-30
+
+### Added
+
+- Several stores in one server, configured with `WOOCOMMERCE_STORES` or `WOOCOMMERCE_STORES_FILE`. Every tool takes an optional `store` argument, and each store has its own read-only setting.
+- Bearer authentication for the HTTP transport: static tokens with full or read-only scope, and OAuth 2.0 access tokens checked with RFC 7662 token introspection. Protected resource metadata (RFC 9728) and `WWW-Authenticate` challenges let clients discover the authorization server.
+- `/healthz` endpoint, `Host` and `Origin` allow lists, and binding beyond loopback when authentication is configured.
+- Write previews: `dryRun: true` returns the exact request a write tool would send, and `confirm: true` applies it.
+- Audit log of every write attempt as JSON Lines (`WOOCOMMERCE_AUDIT_LOG`).
+- Refund tools: list, get, and create, with gateway refunds off unless requested.
+- Bulk tools: batch updates of price, stock, and status for up to 100 products, and percentage or fixed price adjustments.
+- Sales analytics over orders, with a time series, status and payment method breakdowns, and top products, plus a low stock report.
+- `woocommerce_list_stores` tool.
+- MCP resources for stores, products, and orders, and prompts for a sales briefing, restock plan, order triage, and price change review.
+- Optional OpenTelemetry tracing for tool calls and WooCommerce requests (`WOOCOMMERCE_OTEL_ENABLED`).
+- Dockerfile and Docker Compose setup, with an image build and smoke test in CI.
+- Release workflow that verifies the package and publishes it to npm when a version tag is pushed.
+- Documentation for configuration, tools, security, deployment, and observability.
+
+### Changed
+
+- Write tools ask for confirmation by default. Set `WOOCOMMERCE_REQUIRE_CONFIRMATION=false` to apply changes on the first call.
+- `MCP_HTTP_HOST` accepts non-loopback addresses when bearer authentication is configured.
+- Tool modules register through a shared definition that adds the store, preview, audit, and tracing handling.
+
 ## [0.1.0] - 2026-10-30
 
 ### Added
@@ -23,5 +48,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configuration through environment variables, documented in `.env.example`.
 - Tests with mocked HTTP, ESLint, and a GitHub Actions workflow.
 
-[Unreleased]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/sadrmanesh/woocommerce-mcp/releases/tag/v0.1.0

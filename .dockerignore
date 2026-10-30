@@ -1,0 +1,12 @@
+.git
+.github
+node_modules
+dist
+coverage
+test
+*.log
+.env
+.env.*
+!.env.example
+stores.json
+*.jsonl

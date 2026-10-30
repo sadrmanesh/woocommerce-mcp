@@ -294,3 +294,119 @@ export function isRealUtcDate(value: string): boolean {
   const date = new Date(Date.UTC(year, month - 1, day));
   return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day;
 }
+
+export const emptyInput = z.object({}).strict();
+
+export const listRefundsInput = z
+  .object({
+    orderId: resourceId.describe('Order ID'),
+    page: pageSchema,
+    perPage: perPageSchema,
+  })
+  .strict();
+
+export const getRefundInput = z
+  .object({
+    orderId: resourceId.describe('Order ID'),
+    refundId: resourceId.describe('Refund ID'),
+  })
+  .strict();
+
+const refundLineSchema = z
+  .object({
+    id: resourceId.describe('Order line item ID (not the product ID)'),
+    quantity: z.number().int().min(1).max(100_000).optional().describe('Quantity to refund'),
+    refundTotal: moneySchema.describe('Amount to refund for this line, excluding tax'),
+    refundTax: z
+      .array(
+        z
+          .object({
+            id: resourceId.describe('Tax rate ID from the line item taxes'),
+            refundTotal: moneySchema,
+          })
+          .strict(),
+      )
+      .max(20)
+      .optional(),
+  })
+  .strict();
+
+export const createRefundInput = z
+  .object({
+    orderId: resourceId.describe('Order ID'),
+    amount: moneySchema.optional().describe('Total refund amount. Required unless lineItems is given'),
+    reason: z.string().trim().max(1_000).optional().describe('Reason shown on the order'),
+    lineItems: z.array(refundLineSchema).min(1).max(100).optional(),
+    apiRefund: z
+      .boolean()
+      .optional()
+      .describe('Ask the payment gateway to return the money. Defaults to false, which records a manual refund only'),
+    restockItems: z.boolean().optional().describe('Return refunded line item quantities to stock'),
+  })
+  .strict();
+
+const bulkProductUpdate = z
+  .object({
+    id: resourceId.describe('Product ID'),
+    regularPrice: moneySchema.optional(),
+    salePrice: z.union([moneySchema, z.literal('')]).optional().describe('Send an empty string to clear the sale price'),
+    stockQuantity: z.number().int().min(0).max(1_000_000_000).optional(),
+    stockStatus: stockStatusSchema.optional(),
+    manageStock: z.boolean().optional(),
+    status: productStatusSchema.optional(),
+  })
+  .strict();
+
+export const bulkUpdateProductsInput = z
+  .object({
+    updates: z.array(bulkProductUpdate).min(1).max(100).describe('Up to 100 product updates sent as one batch'),
+  })
+  .strict();
+
+export const bulkAdjustPricesInput = z
+  .object({
+    productIds: z.array(resourceId).min(1).max(100).describe('Simple or external products to reprice'),
+    mode: z.enum(['percent', 'fixed']).describe('percent changes by a percentage, fixed by an amount'),
+    change: z
+      .number()
+      .finite()
+      .min(-1_000_000)
+      .max(1_000_000)
+      .describe('Signed change. -10 with mode percent lowers prices by 10%'),
+    target: z
+      .enum(['regular', 'sale'])
+      .optional()
+      .describe('regular adjusts the regular price (default). sale sets the sale price from the regular price'),
+    decimals: z.number().int().min(0).max(4).optional().describe('Decimal places to round to. Defaults to 2'),
+  })
+  .strict();
+
+export const salesAnalyticsInput = z
+  .object({
+    after: isoDateTimeSchema.describe('Include orders created at or after this date-time'),
+    before: isoDateTimeSchema.optional().describe('Include orders created before this date-time. Defaults to now'),
+    statuses: z
+      .array(orderStatusSchema)
+      .min(1)
+      .max(7)
+      .optional()
+      .describe('Order statuses that count as sales. Defaults to processing and completed'),
+    groupBy: z.enum(['day', 'week', 'month']).optional().describe('Time bucket for the series. Defaults to day'),
+    top: z.number().int().min(1).max(50).optional().describe('How many top products to return. Defaults to 10'),
+    maxOrders: z
+      .number()
+      .int()
+      .min(1)
+      .max(5_000)
+      .optional()
+      .describe('Stop after this many orders. Defaults to 1000. The result says when it was truncated'),
+  })
+  .strict();
+
+export const lowStockReportInput = z
+  .object({
+    threshold: z.number().int().min(0).max(1_000_000).optional().describe('Report managed stock at or below this. Defaults to 5'),
+    includeOutOfStock: z.boolean().optional().describe('Include out-of-stock products. Defaults to true'),
+    maxProducts: z.number().int().min(1).max(5_000).optional().describe('Products to scan. Defaults to 500'),
+  })
+  .strict();

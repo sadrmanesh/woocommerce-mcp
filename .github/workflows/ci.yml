@@ -44,3 +44,29 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t woocommerce-mcp:ci .
+
+      - name: Smoke test
+        run: |
+          docker run -d --name mcp -p 127.0.0.1:3000:3000 \
+            -e WOOCOMMERCE_URL=https://store.example.com \
+            -e WOOCOMMERCE_CONSUMER_KEY=ck_ci_placeholder_key \
+            -e WOOCOMMERCE_CONSUMER_SECRET=cs_ci_placeholder_secret \
+            -e MCP_HTTP_AUTH_TOKENS=ci-token-0123456789abcdefghijklmnop \
+            woocommerce-mcp:ci
+          for i in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:3000/healthz; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:3000/healthz
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:3000/mcp)" = "401"
+          docker rm -f mcp

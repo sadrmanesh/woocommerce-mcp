@@ -1,6 +1,12 @@
 import type { CallToolResult } from '@modelcontextprotocol/server';
 
-import { InputError, ReadOnlyModeError, WooCommerceApiError } from '../woocommerce/errors.js';
+import {
+  ForbiddenError,
+  InputError,
+  ReadOnlyModeError,
+  UnknownStoreError,
+  WooCommerceApiError,
+} from '../woocommerce/errors.js';
 import type { ToolContext } from './context.js';
 
 export type ToolResult = CallToolResult;
@@ -15,6 +21,7 @@ export interface ErrorPayload {
   };
 }
 
+/** Runs one tool body against a store context and maps errors to a tool error result. */
 export async function execute<T>(
   ctx: ToolContext,
   name: string,
@@ -39,7 +46,12 @@ export function jsonResult(data: unknown): ToolResult {
 }
 
 export function serializeError(error: unknown): ErrorPayload {
-  if (error instanceof ReadOnlyModeError || error instanceof InputError) {
+  if (
+    error instanceof ReadOnlyModeError ||
+    error instanceof InputError ||
+    error instanceof ForbiddenError ||
+    error instanceof UnknownStoreError
+  ) {
     return { error: { message: error.message, code: error.code } };
   }
   if (error instanceof WooCommerceApiError) {

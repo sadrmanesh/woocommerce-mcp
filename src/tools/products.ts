@@ -4,9 +4,9 @@ import type * as z from 'zod/v4';
 import { InputError } from '../woocommerce/errors.js';
 import { compact, expectArray, expectRecord, stripLinks } from '../woocommerce/json.js';
 import { summarizeProduct } from '../woocommerce/present.js';
-import { pageQuery, type Page, type ToolContext } from './context.js';
-import { toolNames, WRITE_NOTE } from './names.js';
-import { execute } from './result.js';
+import { pageQuery, type Page, type Runtime, type ToolContext } from './context.js';
+import { toolNames } from './names.js';
+import { CREATE, defineTool, READ, UPDATE } from './registry.js';
 import {
   createProductInput,
   getProductInput,
@@ -16,88 +16,58 @@ import {
   updateProductInput,
 } from './schemas.js';
 
-const readAnnotations = {
-  readOnlyHint: true,
-  destructiveHint: false,
-  idempotentHint: true,
-  openWorldHint: true,
-} as const;
-
-const createAnnotations = {
-  readOnlyHint: false,
-  destructiveHint: false,
-  idempotentHint: false,
-  openWorldHint: true,
-} as const;
-
-const updateAnnotations = {
-  readOnlyHint: false,
-  destructiveHint: true,
-  idempotentHint: true,
-  openWorldHint: true,
-} as const;
-
 export type ListProductsInput = z.infer<typeof listProductsInput>;
 export type SearchProductsInput = z.infer<typeof searchProductsInput>;
 export type GetProductInput = z.infer<typeof getProductInput>;
 export type CreateProductInput = z.infer<typeof createProductInput>;
 export type UpdateProductInput = z.infer<typeof updateProductInput>;
 
-export function registerProductTools(server: McpServer, ctx: ToolContext): void {
-  server.registerTool(
-    toolNames.listProducts,
-    {
-      title: 'List products',
-      description: 'List products in the WooCommerce catalog. Returns a short summary per product plus pagination.',
-      inputSchema: listProductsInput,
-      annotations: readAnnotations,
-    },
-    async (input) => execute(ctx, toolNames.listProducts, false, () => listProducts(ctx, input)),
-  );
-
-  server.registerTool(
-    toolNames.searchProducts,
-    {
-      title: 'Search products',
-      description: 'Search products by name, SKU, or description. Returns the same summary shape as the product list.',
-      inputSchema: searchProductsInput,
-      annotations: readAnnotations,
-    },
-    async (input) => execute(ctx, toolNames.searchProducts, false, () => searchProducts(ctx, input)),
-  );
-
-  server.registerTool(
-    toolNames.getProduct,
-    {
-      title: 'Get product',
-      description: 'Get one product by ID, without the REST _links payload.',
-      inputSchema: getProductInput,
-      annotations: readAnnotations,
-    },
-    async (input) => execute(ctx, toolNames.getProduct, false, () => getProduct(ctx, input)),
-  );
-
-  server.registerTool(
-    toolNames.createProduct,
-    {
-      title: 'Create product',
-      description: `Create a product. Prefer status "draft" unless the user asked to publish. ${WRITE_NOTE}`,
-      inputSchema: createProductInput,
-      annotations: createAnnotations,
-    },
-    async (input) => execute(ctx, toolNames.createProduct, true, () => createProduct(ctx, input)),
-  );
-
-  server.registerTool(
-    toolNames.updateProduct,
-    {
-      title: 'Update product',
-      description: `Update fields on an existing product. Only fields you send are changed. ${WRITE_NOTE}`,
-      inputSchema: updateProductInput,
-      annotations: updateAnnotations,
-    },
-    async (input) => execute(ctx, toolNames.updateProduct, true, () => updateProduct(ctx, input)),
-  );
+export function registerProductTools(server: McpServer, runtime: Runtime): void {
+  defineTool(server, runtime, {
+    name: toolNames.listProducts,
+    title: 'List products',
+    description: 'List products in the WooCommerce catalog. Returns a short summary per product plus pagination.',
+    input: listProductsInput,
+    annotations: READ,
+    write: false,
+    run: listProducts,
+  });
+  defineTool(server, runtime, {
+    name: toolNames.searchProducts,
+    title: 'Search products',
+    description: 'Search products by name, SKU, or description. Returns the same summary shape as the product list.',
+    input: searchProductsInput,
+    annotations: READ,
+    write: false,
+    run: searchProducts,
+  });
+  defineTool(server, runtime, {
+    name: toolNames.getProduct,
+    title: 'Get product',
+    description: 'Get one product by ID, without the REST _links payload.',
+    input: getProductInput,
+    annotations: READ,
+    write: false,
+    run: getProduct,
+  });
+  defineTool(server, runtime, {
+    name: toolNames.createProduct,
+    title: 'Create product',
+    description: 'Create a product. Prefer status "draft" unless the user asked to publish.',
+    input: createProductInput,
+    annotations: CREATE,
+    write: true,
+    run: createProduct,
+  });
+  defineTool(server, runtime, {
+    name: toolNames.updateProduct,
+    title: 'Update product',
+    description: 'Update fields on an existing product. Only fields you send are changed.',
+    input: updateProductInput,
+    annotations: UPDATE,
+    write: true,
+    run: updateProduct,
+  });
 }
 
 export async function listProducts(ctx: ToolContext, input: ListProductsInput): Promise<Page<ReturnType<typeof summarizeProduct>>> {
