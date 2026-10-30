@@ -11,6 +11,7 @@ It runs locally over stdio, or as a remote service over streamable HTTP with bea
 
 [Get started](getting-started.md){ .md-button .md-button--primary }
 [Tools reference](tools.md){ .md-button }
+[Tool explorer](https://huggingface.co/spaces/sadrmanesh/woocommerce-mcp-explorer){ .md-button }
 [GitHub](https://github.com/sadrmanesh/woocommerce-mcp){ .md-button }
 
 ```bash

@@ -11,7 +11,7 @@ A [Model Context Protocol](https://modelcontextprotocol.io) server for running o
 
 It runs locally over stdio, or as a remote service over streamable HTTP with bearer-token or OAuth 2.0 authentication, and ships as a Docker image on the GitHub Container Registry.
 
-**Documentation:** <https://sadrmanesh.github.io/woocommerce-mcp/>
+**Documentation:** <https://sadrmanesh.github.io/woocommerce-mcp/> · **Tool explorer:** [Hugging Face Space](https://huggingface.co/spaces/sadrmanesh/woocommerce-mcp-explorer)
 
 Listed on the [official MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.sadrmanesh/woocommerce-mcp) as `io.github.sadrmanesh/woocommerce-mcp`.
 
@@ -53,7 +53,7 @@ Node.js 20 or newer is required.
 npm install -g @sadrmanesh/woocommerce-mcp
 ```
 
-Or run the Docker image from the GitHub Container Registry (`linux/amd64` and `linux/arm64`, tags `X.Y.Z`, `X.Y`, and `latest`):
+Or run the Docker image from the GitHub Container Registry (`linux/amd64` and `linux/arm64`, tags `X.Y.Z`, `X.Y`, and `latest`). The same image is on [Docker Hub](https://hub.docker.com/r/sadrmanesh/woocommerce-mcp) as `sadrmanesh/woocommerce-mcp`:
 
 ```bash
 docker run --rm -i -e MCP_TRANSPORT=stdio \
@@ -131,6 +131,8 @@ Without authentication the HTTP endpoint only binds to loopback. See [docs/secur
 ## Tools, resources, and prompts
 
 Every tool except `woocommerce_list_stores` accepts an optional `store` id. Without it, the default store is used.
+
+To browse every tool with its full input schema and build `tools/call` requests in the browser, open the [tool explorer on Hugging Face](https://huggingface.co/spaces/sadrmanesh/woocommerce-mcp-explorer).
 
 | Area | Read tools | Write tools |
 | --- | --- | --- |

@@ -2,6 +2,8 @@
 
 The server has 47 tools. Operators can hide any of them with allow and deny lists; see [Configuration](configuration.md#tool-allow-and-deny-lists).
 
+The [tool explorer on Hugging Face](https://huggingface.co/spaces/sadrmanesh/woocommerce-mcp-explorer) lists every tool, prompt, and resource with the exact input schemas the server reports over `tools/list`, and builds the `tools/call` request for any arguments you enter.
+
 Every tool accepts an optional `store` argument with a store id from `woocommerce_list_stores`. Without it, the default store is used. Results are JSON text. Errors come back as tool errors with a `code`, a `message`, and, for WooCommerce errors, the HTTP status.
 
 List tools accept `page` (from 1) and `perPage` (1 to 100) and return `items` with `page`, `perPage`, `total`, and `totalPages` when the store reports them. Dates are ISO-8601 (`2026-10-01T00:00:00`). Money values are strings or numbers without a currency symbol.
