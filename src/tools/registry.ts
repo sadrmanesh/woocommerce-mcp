@@ -2,11 +2,12 @@ import type { AuthInfo, McpServer, ToolAnnotations } from '@modelcontextprotocol
 import * as z from 'zod/v4';
 
 import type { AuditEntry, AuditOutcome } from '../audit.js';
-import { SCOPES } from '../config.js';
+import { SCOPES, toolAllowed } from '../config.js';
+import { redactPersonalData } from '../redact.js';
 import { withSpan } from '../telemetry.js';
-import { ForbiddenError, PlannedWrite, ReadOnlyModeError } from '../woocommerce/errors.js';
+import { ForbiddenError, PlannedWrite, ReadOnlyModeError, ToolDisabledError } from '../woocommerce/errors.js';
 import { resolveStore, type Runtime, type ToolContext } from './context.js';
-import { jsonResult, serializeError, type ToolResult } from './result.js';
+import { jsonResult as plainJsonResult, serializeError, type ToolResult } from './result.js';
 
 export const READ: ToolAnnotations = {
   readOnlyHint: true,
@@ -71,6 +72,9 @@ interface CallMeta {
 }
 
 export function defineTool<S extends AnyObject>(server: McpServer, runtime: Runtime, spec: ToolSpec<S>): void {
+  if (!toolAllowed(runtime.tools, spec.name)) return;
+  // Hide tools that no configured store allows.
+  if (!runtime.stores.some((store) => toolAllowed(store.config.tools, spec.name))) return;
   const schema = spec.write
     ? spec.input.extend({ store: storeField, ...writeFields })
     : spec.input.extend({ store: storeField });
@@ -117,10 +121,17 @@ export async function runTool<S extends AnyObject>(
       try {
         const handle = resolveStore(runtime, storeId);
         storeLabel = handle.config.id;
+        if (!toolAllowed(handle.config.tools, spec.name)) throw new ToolDisabledError(spec.name, handle.config.id);
+        const jsonResult = (value: unknown): ToolResult =>
+          plainJsonResult(handle.config.redactPii ? redactPersonalData(value) : value);
         const ctx: ToolContext = {
           client: handle.client,
           readOnly: handle.config.readOnly,
           defaultPerPage: runtime.defaultPerPage,
+          storeId: handle.config.id,
+          events: runtime.events,
+          trackingMode: runtime.trackingMode,
+          webhookSecret: handle.config.webhookSecret,
         };
         if (!spec.write) return jsonResult(await spec.run(ctx, args));
 
@@ -143,28 +154,31 @@ export async function runTool<S extends AnyObject>(
           return jsonResult({ status: 'no_change', store: handle.config.id, result });
         } catch (error) {
           if (!(error instanceof PlannedWrite)) throw error;
+          // Previews echo the caller's own arguments, so they are not masked.
           const request = { method: error.request.method, path: error.request.path };
+          const planned = { ...error.request, body: hideSecrets(error.request.body) };
           if (dryRun === true) {
             await audit('dry_run', { request });
-            return jsonResult({
+            return plainJsonResult({
               status: 'dry_run',
               store: handle.config.id,
               message: 'Nothing was sent to the store. This is the request the tool would make.',
-              request: error.request,
+              request: planned,
             });
           }
           await audit('confirmation_required', { request });
-          return jsonResult({
+          return plainJsonResult({
             status: 'confirmation_required',
             store: handle.config.id,
             message:
               'The change was NOT applied. Review the request below with the user, then call this tool again with the same arguments and confirm: true.',
-            request: error.request,
+            request: planned,
           });
         }
       } catch (error) {
         const payload = serializeError(error);
-        const refused = error instanceof ReadOnlyModeError || error instanceof ForbiddenError;
+        const refused =
+          error instanceof ReadOnlyModeError || error instanceof ForbiddenError || error instanceof ToolDisabledError;
         await audit(refused ? 'refused' : 'failed', {
           error: { code: payload.error.code, message: payload.error.message },
         });
@@ -172,4 +186,18 @@ export async function runTool<S extends AnyObject>(
       }
     },
   );
+}
+
+/** Webhook secrets come from config and must never be echoed into a preview. */
+export function hideSecrets(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(hideSecrets);
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, child]) => [
+        key,
+        key === 'secret' && typeof child === 'string' ? '[configured secret]' : hideSecrets(child),
+      ]),
+    );
+  }
+  return value;
 }

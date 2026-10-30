@@ -1,5 +1,6 @@
 import type { AuditLog } from '../audit.js';
-import type { StoreConfig } from '../config.js';
+import type { StoreConfig, ToolFilter, TrackingMode } from '../config.js';
+import type { WebhookEventStore } from '../webhooks.js';
 import type { WooCommerceClient } from '../woocommerce/client.js';
 import { UnknownStoreError } from '../woocommerce/errors.js';
 
@@ -8,6 +9,11 @@ export interface ToolContext {
   client: WooCommerceClient;
   defaultPerPage: number;
   readOnly: boolean;
+  storeId: string;
+  events: WebhookEventStore;
+  trackingMode: TrackingMode;
+  /** True when the store has a webhook secret, so new webhooks can be signed with it. */
+  webhookSecret: string | null;
 }
 
 export interface StoreHandle {
@@ -24,6 +30,10 @@ export interface Runtime {
   audit: AuditLog;
   /** True when the HTTP endpoint verifies bearer tokens, so scopes apply. */
   scopesEnforced: boolean;
+  /** Tools registered on the server at all. Stores can narrow this further. */
+  tools: ToolFilter;
+  events: WebhookEventStore;
+  trackingMode: TrackingMode;
 }
 
 export function resolveStore(runtime: Runtime, id: string | undefined): StoreHandle {

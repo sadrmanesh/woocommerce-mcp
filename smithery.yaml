@@ -1,0 +1,55 @@
+# Smithery configuration: https://smithery.ai/docs/build/project-config
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    required:
+      - storeUrl
+      - consumerKey
+      - consumerSecret
+    properties:
+      storeUrl:
+        type: string
+        description: Store origin, such as https://store.example.com
+      consumerKey:
+        type: string
+        description: WooCommerce REST API consumer key (ck_...)
+      consumerSecret:
+        type: string
+        description: WooCommerce REST API consumer secret (cs_...)
+      readOnly:
+        type: boolean
+        default: true
+        description: Refuse every write tool. Turn off to allow writes with preview and confirm.
+      redactPii:
+        type: boolean
+        default: false
+        description: Mask customer names, emails, phones, and addresses in results.
+      denyTools:
+        type: string
+        default: ""
+        description: Comma-separated tool names or patterns to hide, such as delete_*
+  commandFunction: |-
+    (config) => ({
+      command: 'node',
+      args: ['dist/index.js'],
+      env: {
+        MCP_TRANSPORT: 'stdio',
+        WOOCOMMERCE_URL: config.storeUrl,
+        WOOCOMMERCE_CONSUMER_KEY: config.consumerKey,
+        WOOCOMMERCE_CONSUMER_SECRET: config.consumerSecret,
+        WOOCOMMERCE_READ_ONLY: String(config.readOnly ?? true),
+        WOOCOMMERCE_REDACT_PII: String(config.redactPii ?? false),
+        ...(config.denyTools ? { WOOCOMMERCE_TOOLS_DENY: config.denyTools } : {}),
+      },
+    })
+  exampleConfig:
+    storeUrl: https://store.example.com
+    consumerKey: ck_example
+    consumerSecret: cs_example
+    readOnly: true
+    redactPii: false
+    denyTools: ""
+build:
+  dockerfile: Dockerfile
+  dockerBuildPath: .

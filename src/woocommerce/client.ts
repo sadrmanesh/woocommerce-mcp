@@ -1,12 +1,13 @@
 import type { ClientOptions } from '../config.js';
 import { withSpan } from '../telemetry.js';
 import { createNonce, authorize } from './auth.js';
+import { ResponseCache } from './cache.js';
 import { PlannedWrite, WooCommerceApiError } from './errors.js';
 import { isRecord } from './json.js';
 import { parseRetryAfter, readTotalHeader, type Pagination } from './pagination.js';
+import { RateLimiter } from './rate-limit.js';
 
 const MAX_BODY_CHARS = 5_000_000;
-const MAX_RETRY_WAIT_MS = 10_000;
 
 export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
@@ -27,19 +28,60 @@ export interface ClientHooks {
   timestamp?: () => number;
 }
 
+/** State shared by a store client and the planning and namespace views derived from it. */
+interface SharedState {
+  limiter: RateLimiter;
+  cache: ResponseCache<ApiResponse<unknown>>;
+}
+
+export interface ClientStats {
+  cache: ReturnType<ResponseCache<unknown>['stats']>;
+  rateLimit: { requestsPerSecond: number; burst: number };
+}
+
 export class WooCommerceClient {
+  private readonly shared: SharedState;
+
   constructor(
     private readonly options: ClientOptions,
     private readonly hooks: ClientHooks = {},
     private readonly planWrites = false,
-  ) {}
+    shared?: SharedState,
+    private readonly namespace: string = options.apiVersion,
+  ) {
+    const now = hooks.now ?? Date.now;
+    this.shared = shared ?? {
+      limiter: new RateLimiter(options.rateLimit, options.rateBurst, now),
+      cache: new ResponseCache(options.cacheTtlMs, options.cacheMaxEntries, now),
+    };
+  }
 
   /**
    * Returns a client that performs reads normally but stops at the first write
    * and throws a {@link PlannedWrite} describing the request it would send.
    */
   planning(): WooCommerceClient {
-    return new WooCommerceClient(this.options, this.hooks, true);
+    return new WooCommerceClient(this.options, this.hooks, true, this.shared, this.namespace);
+  }
+
+  /** Returns a client for another REST namespace on the same store, such as an extension's API. */
+  withNamespace(namespace: string): WooCommerceClient {
+    if (!/^[a-z0-9-]+\/v\d+$/.test(namespace)) {
+      throw new WooCommerceApiError('Refused to use an unsafe REST namespace.', { code: 'invalid_path', status: 0 });
+    }
+    return new WooCommerceClient(this.options, this.hooks, this.planWrites, this.shared, namespace);
+  }
+
+  /** Drops every cached response for this store. */
+  clearCache(): void {
+    this.shared.cache.clear();
+  }
+
+  stats(): ClientStats {
+    return {
+      cache: this.shared.cache.stats(),
+      rateLimit: { requestsPerSecond: this.options.rateLimit, burst: this.options.rateBurst },
+    };
   }
 
   get<T = unknown>(path: string, query?: QueryParams): Promise<ApiResponse<T>> {
@@ -66,9 +108,21 @@ export class WooCommerceClient {
   ): Promise<ApiResponse<T>> {
     const safePath = assertApiPath(path);
     if (this.planWrites && method !== 'GET') {
-      throw new PlannedWrite({ method, path: safePath, query: normalizeQuery(query), body });
+      throw new PlannedWrite({
+        method,
+        path: this.namespace === this.options.apiVersion ? safePath : `${this.namespace}/${safePath}`,
+        query: normalizeQuery(query),
+        body,
+      });
     }
-    return withSpan(
+    const cacheKey = method === 'GET' ? `${this.namespace}/${safePath}?${JSON.stringify(normalizeQuery(query))}` : null;
+    if (cacheKey !== null) {
+      const cached = this.shared.cache.get(cacheKey);
+      if (cached) return structuredClone(cached) as ApiResponse<T>;
+    }
+    // Any write can change what reads return, so start fresh, even when the write fails.
+    if (cacheKey === null) this.shared.cache.clear();
+    const response = await withSpan(
       `woocommerce ${method}`,
       {
         'http.request.method': method,
@@ -76,11 +130,17 @@ export class WooCommerceClient {
         'server.address': new URL(this.options.url).host,
       },
       async (span) => {
-        const response = await this.requestWithRetries<T>(method, safePath, query, body);
-        span.setAttribute('http.response.status_code', response.status);
-        return response;
+        const result = await this.requestWithRetries<T>(method, safePath, query, body);
+        span.setAttribute('http.response.status_code', result.status);
+        return result;
       },
     );
+    if (cacheKey !== null) {
+      this.shared.cache.set(cacheKey, structuredClone(response) as ApiResponse<unknown>);
+    } else {
+      this.shared.cache.clear();
+    }
+    return response;
   }
 
   private async requestWithRetries<T>(
@@ -91,6 +151,8 @@ export class WooCommerceClient {
   ): Promise<ApiResponse<T>> {
     let lastError: WooCommerceApiError | undefined;
     for (let attempt = 0; attempt <= this.options.maxRetries; attempt += 1) {
+      const wait = this.shared.limiter.reserve();
+      if (wait > 0) await this.sleep(wait);
       try {
         return await this.send<T>(method, safePath, query, body);
       } catch (error) {
@@ -117,7 +179,7 @@ export class WooCommerceClient {
     const params = normalizeQuery(query);
     const signed = authorize({
       method,
-      url: `${this.options.url}/wp-json/${this.options.apiVersion}/${path}`,
+      url: `${this.options.url}/wp-json/${this.namespace}/${path}`,
       query: params,
       consumerKey: this.options.consumerKey,
       consumerSecret: this.options.consumerSecret,
@@ -210,20 +272,22 @@ export class WooCommerceClient {
 
   // GET retries rate limits, timeouts, and gateway failures.
   // Writes retry only on 429, where the store rejected the call before applying it.
-  // A Retry-After above 10 seconds is returned to the caller instead of blocking the tool.
+  // A Retry-After above the maximum backoff is returned to the caller instead of blocking the tool.
   private isRetryable(method: string, error: WooCommerceApiError): boolean {
-    if (error.retryAfterMs !== undefined && error.retryAfterMs > MAX_RETRY_WAIT_MS) return false;
+    if (error.retryAfterMs !== undefined && error.retryAfterMs > this.options.retryMaxMs) return false;
     if (error.status === 429) return true;
     if (method !== 'GET') return false;
-    if (error.status === 502 || error.status === 503 || error.status === 504) return true;
+    if (error.status === 408 || error.status === 502 || error.status === 503 || error.status === 504) return true;
     return error.code === 'timeout' || error.code === 'network';
   }
 
+  /** Exponential backoff with jitter, or the server's Retry-After when it sent one. */
   private delayMs(error: WooCommerceApiError, attempt: number): number {
-    const backoff = Math.min(MAX_RETRY_WAIT_MS, 250 * 2 ** attempt);
-    const base = error.retryAfterMs ?? backoff;
-    const jitter = Math.floor((this.hooks.random ?? Math.random)() * 100);
-    return base + jitter;
+    if (error.retryAfterMs !== undefined) return error.retryAfterMs;
+    const ceiling = Math.min(this.options.retryMaxMs, this.options.retryBaseMs * 2 ** attempt);
+    const random = (this.hooks.random ?? Math.random)();
+    // Equal jitter: at least half the backoff, so retries never hammer the store.
+    return Math.floor(ceiling / 2 + (ceiling / 2) * random);
   }
 
   private async sleep(ms: number): Promise<void> {

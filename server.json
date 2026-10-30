@@ -1,0 +1,64 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.sadrmanesh/woocommerce-mcp",
+  "title": "WooCommerce MCP",
+  "description": "Manage WooCommerce stores: products, orders, customers, coupons, webhooks, and analytics.",
+  "version": "0.3.0",
+  "websiteUrl": "https://sadrmanesh.github.io/woocommerce-mcp/",
+  "repository": {
+    "url": "https://github.com/sadrmanesh/woocommerce-mcp",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "@sadrmanesh/woocommerce-mcp",
+      "version": "0.3.0",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "WOOCOMMERCE_URL",
+          "description": "Store origin, such as https://store.example.com",
+          "isRequired": true,
+          "isSecret": false
+        },
+        {
+          "name": "WOOCOMMERCE_CONSUMER_KEY",
+          "description": "WooCommerce REST API consumer key (ck_...)",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "WOOCOMMERCE_CONSUMER_SECRET",
+          "description": "WooCommerce REST API consumer secret (cs_...)",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "WOOCOMMERCE_READ_ONLY",
+          "description": "Refuse every write tool. Set to false to allow writes",
+          "isRequired": false,
+          "isSecret": false,
+          "default": "true"
+        },
+        {
+          "name": "WOOCOMMERCE_REDACT_PII",
+          "description": "Mask customer names, emails, phones, and addresses in results",
+          "isRequired": false,
+          "isSecret": false,
+          "default": "false"
+        },
+        {
+          "name": "WOOCOMMERCE_TOOLS_DENY",
+          "description": "Comma-separated tool names or patterns to hide, such as delete_*",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}

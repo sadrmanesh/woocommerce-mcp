@@ -1,14 +1,22 @@
 import { type McpServer, ResourceNotFoundError, ResourceTemplate } from '@modelcontextprotocol/server';
 
-import { resolveStore, type Runtime } from './tools/context.js';
+import { redactPersonalData } from './redact.js';
+import { resolveStore, type Runtime, type StoreHandle } from './tools/context.js';
 import { listStores } from './tools/stores.js';
+import { presentEvent } from './tools/webhooks.js';
 import { expectRecord, stripLinks } from './woocommerce/json.js';
 
 export const RESOURCE_URIS = {
   stores: 'woocommerce://stores',
   product: 'woocommerce://stores/{store}/products/{id}',
   order: 'woocommerce://stores/{store}/orders/{id}',
+  events: 'woocommerce://stores/{store}/events',
+  event: 'woocommerce://stores/{store}/events/{id}',
 } as const;
+
+function guarded(store: StoreHandle, data: unknown): unknown {
+  return store.config.redactPii ? redactPersonalData(data) : data;
+}
 
 function single(value: string | string[] | undefined): string {
   return (Array.isArray(value) ? value[0] : value) ?? '';
@@ -50,7 +58,7 @@ export function registerResources(server: McpServer, runtime: Runtime): void {
     async (uri, variables) => {
       const store = resolveStore(runtime, single(variables.store));
       const response = await store.client.get(`products/${numericId(variables.id, uri)}`);
-      return json(uri, stripLinks(expectRecord(response.data, 'product')));
+      return json(uri, guarded(store, stripLinks(expectRecord(response.data, 'product'))));
     },
   );
 
@@ -65,7 +73,42 @@ export function registerResources(server: McpServer, runtime: Runtime): void {
     async (uri, variables) => {
       const store = resolveStore(runtime, single(variables.store));
       const response = await store.client.get(`orders/${numericId(variables.id, uri)}`);
-      return json(uri, stripLinks(expectRecord(response.data, 'order')));
+      return json(uri, guarded(store, stripLinks(expectRecord(response.data, 'order'))));
+    },
+  );
+
+  server.registerResource(
+    'webhook-events',
+    new ResourceTemplate(RESOURCE_URIS.events, { list: undefined, complete: { store: storeIds } }),
+    {
+      title: 'Webhook events',
+      description: 'The 50 most recent webhook deliveries received for a store, newest first, without payloads.',
+      mimeType: 'application/json',
+    },
+    async (uri, variables) => {
+      const store = resolveStore(runtime, single(variables.store));
+      const events = runtime.events.list({ store: store.config.id, limit: 50 });
+      return json(uri, {
+        store: store.config.id,
+        buffered: runtime.events.count(store.config.id),
+        events: events.map((event) => presentEvent(event, false, false)),
+      });
+    },
+  );
+
+  server.registerResource(
+    'webhook-event',
+    new ResourceTemplate(RESOURCE_URIS.event, { list: undefined, complete: { store: storeIds } }),
+    {
+      title: 'Webhook event',
+      description: 'One webhook delivery with its payload. Payloads can contain customer personal data.',
+      mimeType: 'application/json',
+    },
+    async (uri, variables) => {
+      const store = resolveStore(runtime, single(variables.store));
+      const event = runtime.events.get(store.config.id, numericId(variables.id, uri));
+      if (!event) throw new ResourceNotFoundError(uri.href);
+      return json(uri, presentEvent(event, true, store.config.redactPii));
     },
   );
 }

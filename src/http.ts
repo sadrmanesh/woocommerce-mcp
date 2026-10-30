@@ -20,6 +20,7 @@ import {
 import { createTokenVerifier, type VerifierOptions } from './auth.js';
 import { type AppConfig, SCOPES } from './config.js';
 import { installShutdown } from './shutdown.js';
+import { receiveWebhook, webhookStoreFromPath, type WebhookReceiverOptions } from './webhook-receiver.js';
 import { VERSION } from './version.js';
 
 export interface HttpServerOptions {
@@ -28,6 +29,8 @@ export interface HttpServerOptions {
   /** Overrides how bearer tokens are checked. Mainly for tests. */
   verifier?: OAuthTokenVerifier;
   verifierOptions?: VerifierOptions;
+  /** Enables the WooCommerce webhook receiver. */
+  webhooks?: WebhookReceiverOptions;
 }
 
 export interface HttpServerHandle {
@@ -81,6 +84,12 @@ export async function startHttpServer(
     }
     if (pathname === '/healthz') {
       writeJson(response, 200, { status: 'ok', version: VERSION });
+      return;
+    }
+    const webhookStore = options.webhooks ? webhookStoreFromPath(pathname, options.webhooks.path) : null;
+    if (options.webhooks && webhookStore !== null) {
+      const result = await receiveWebhook(request, webhookStore, options.webhooks);
+      writeJson(response, result.status, result.body);
       return;
     }
     if (auth && isMetadataPath(pathname, config.httpPath)) {

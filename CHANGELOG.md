@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-30
+
+### Added
+
+- Customer tools: `woocommerce_update_customer`, `woocommerce_customer_orders` with lifetime totals, and `woocommerce_customer_segments`, which groups customers into VIP, repeat, one-time, and at-risk segments and summarizes guest orders.
+- PII redaction: `WOOCOMMERCE_REDACT_PII` or a per-store `redactPii` setting masks names, emails, phones, and street addresses in every tool result and resource. Customer tools also accept `redactPii` per call.
+- Coupon and promotion tools: get, update, and delete coupons, `woocommerce_coupon_performance` (uses, discount given, and revenue per code), and `woocommerce_schedule_sale` and `woocommerce_end_sale` for timed percentage sales.
+- Order fulfillment: `woocommerce_list_order_notes`, `woocommerce_delete_order_note`, `woocommerce_get_order_tracking`, and `woocommerce_fulfill_order`, which records tracking, completes the order, and notifies the customer. Tracking is kept in order meta, or in the Shipment Tracking extension with `WOOCOMMERCE_TRACKING_MODE=shipment-tracking`.
+- Webhook management: list, get, create, update (including secret rotation), and delete webhooks. Webhook secrets come from configuration and never appear in results or previews.
+- Webhook receiver on the HTTP transport at `WOOCOMMERCE_WEBHOOK_PATH/<store>`. Deliveries are verified with the store's HMAC-SHA256 secret and kept in memory, readable with `woocommerce_list_webhook_events` and the `woocommerce://stores/{store}/events` resources.
+- Shipping and tax tools: shipping zones with their locations and methods, shipping methods, tax rates, and tax classes.
+- Tool allow and deny lists with `*` patterns: `WOOCOMMERCE_TOOLS_ALLOW` and `WOOCOMMERCE_TOOLS_DENY` for the whole server, and `allowTools` and `denyTools` per store.
+- Per-store rate limiting (`WOOCOMMERCE_RATE_LIMIT`, `WOOCOMMERCE_RATE_BURST`).
+- Optional read cache (`WOOCOMMERCE_CACHE_TTL_MS`, `WOOCOMMERCE_CACHE_MAX_ENTRIES`), cleared by every write to the store.
+- `server.json` for the MCP Registry, `mcpName` in `package.json`, a `smithery.yaml`, and OCI labels on the Docker image.
+- Documentation for install options, webhooks, privacy, and performance.
+
+### Changed
+
+- The npm package is now published as `@sadrmanesh/woocommerce-mcp`. Install it with `npm install -g @sadrmanesh/woocommerce-mcp` or run it with `npx -y @sadrmanesh/woocommerce-mcp`. The command name is still `woocommerce-mcp`.
+- `woocommerce_low_stock_report` now checks the variations of variable products, unless `includeVariations: false`. Each item has `type` (`product` or `variation`) and `parentId`, and the result reports `variationsScanned`.
+- Retries use exponential backoff with equal jitter, configurable with `WOOCOMMERCE_RETRY_BASE_MS` and `WOOCOMMERCE_RETRY_MAX_MS`. Reads also retry HTTP 408.
+- `woocommerce_list_stores` reports each store's privacy, webhook, cache, and rate limit settings.
+- The server now has 47 tools, up from 24.
+
 ## [0.2.0] - 2026-10-30
 
 ### Added
@@ -48,6 +73,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configuration through environment variables, documented in `.env.example`.
 - Tests with mocked HTTP, ESLint, and a GitHub Actions workflow.
 
-[Unreleased]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/sadrmanesh/woocommerce-mcp/releases/tag/v0.1.0

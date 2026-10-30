@@ -138,7 +138,7 @@ describe('HTTP bearer authentication', () => {
 });
 
 async function connect(url: string, token: string): Promise<Client> {
-  const client = new Client({ name: 'woocommerce-mcp-test', version: '0.2.0' }, { versionNegotiation: { mode: 'auto' } });
+  const client = new Client({ name: 'woocommerce-mcp-test', version: '0.3.0' }, { versionNegotiation: { mode: 'auto' } });
   await client.connect(
     new StreamableHTTPClientTransport(new URL(url), { requestInit: { headers: { authorization: `Bearer ${token}` } } }),
   );

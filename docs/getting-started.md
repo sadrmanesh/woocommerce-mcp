@@ -5,7 +5,7 @@
 Node.js 20 or newer is required.
 
 ```bash
-npm install -g woocommerce-mcp
+npm install -g @sadrmanesh/woocommerce-mcp
 ```
 
 Or from a checkout:
@@ -31,7 +31,7 @@ The process then serves MCP on stdin and stdout. Logs go to stderr. `npm start` 
 
 ## Connect an MCP client
 
-Most hosts accept an `mcpServers` map like the ones below. Keep secrets in `env`, never in `args`.
+Most hosts accept an `mcpServers` map like the ones below. Keep secrets in `env`, never in `args`. For Docker, Smithery, and the MCP Registry, see [Install options](install.md).
 
 ### stdio
 
@@ -40,7 +40,7 @@ Most hosts accept an `mcpServers` map like the ones below. Keep secrets in `env`
   "mcpServers": {
     "woocommerce": {
       "command": "npx",
-      "args": ["-y", "woocommerce-mcp"],
+      "args": ["-y", "@sadrmanesh/woocommerce-mcp"],
       "env": {
         "WOOCOMMERCE_URL": "https://store.example.com",
         "WOOCOMMERCE_CONSUMER_KEY": "ck_your_consumer_key",

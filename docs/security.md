@@ -2,7 +2,7 @@
 
 ## Store credentials
 
-The server holds WooCommerce consumer keys only in memory. Give each store the narrowest key that works: a **Read** key for read-only stores, and a **Read/Write** key only for stores where you set `readOnly: false`. Customer and order tools return personal data, so protect the server the way you protect store admin access.
+The server holds WooCommerce consumer keys only in memory. Give each store the narrowest key that works: a **Read** key for read-only stores, and a **Read/Write** key only for stores where you set `readOnly: false`. Customer and order tools return personal data, so protect the server the way you protect store admin access, and turn on [PII redaction](privacy.md) when the assistant does not need names and addresses.
 
 Over `https://` the client uses HTTP Basic auth. Over plain `http://` it signs requests with OAuth 1.0a (HMAC-SHA1), as WooCommerce requires. `query` mode puts the secret in the URL and is only for hosts that strip the `Authorization` header; the server warns when a configuration would expose a secret.
 
@@ -16,6 +16,16 @@ Writes pass four checks, in order:
 4. The WooCommerce key has write permission.
 
 Each write attempt is recorded in the audit log when `WOOCOMMERCE_AUDIT_LOG` is set, including refused and failed attempts. Entries contain the tool arguments, which can include customer notes or prices, so store the file with the same care as the store data.
+
+## Limit the tools
+
+Remove tools a deployment does not need with `WOOCOMMERCE_TOOLS_ALLOW` and `WOOCOMMERCE_TOOLS_DENY`, or per store with `allowTools` and `denyTools`. A hidden tool is not listed, so the assistant cannot call it or be talked into calling it. For example, `WOOCOMMERCE_TOOLS_DENY="delete_*,*webhook*"` removes every delete tool and all webhook management. See [Configuration](configuration.md#tool-allow-and-deny-lists).
+
+## Webhook receiver
+
+The [webhook receiver](webhooks.md) accepts deliveries without a bearer token, because WooCommerce cannot send one. Instead each delivery must carry a valid HMAC-SHA256 signature made with the store's webhook secret, compared in constant time. Stores without a secret have no receiver. Bodies over 1 MB are refused, and only the newest deliveries are kept in memory.
+
+Use a random secret of 32 bytes or more, keep it in an environment variable referenced by `webhookSecretEnv`, and rotate it by changing the variable, restarting, and calling `woocommerce_update_webhook` with `rotateSecret: true` for each webhook. Tool results and previews never contain the secret.
 
 ## HTTP authentication
 

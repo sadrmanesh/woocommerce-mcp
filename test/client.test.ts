@@ -97,7 +97,8 @@ describe('WooCommerceClient', () => {
     });
     const response = await client.get('reports/sales');
     assert.deepEqual(response.data, [{ id: 1 }]);
-    assert.deepEqual(sleeps, [250]);
+    // Equal jitter: half the 250 ms base backoff plus a random share of the other half.
+    assert.deepEqual(sleeps, [125]);
     assert.equal(requests.length, 2);
   });
 
