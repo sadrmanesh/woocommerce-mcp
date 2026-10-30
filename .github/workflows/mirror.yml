@@ -1,0 +1,55 @@
+name: Mirror to GitLab
+
+# Pushes main and all tags to gitlab.com/<namespace>/<repo>.
+# Runs only when the GITLAB_TOKEN secret is set (a GitLab personal or project
+# access token with write_repository). The namespace defaults to sadrmanesh and
+# can be changed with the GITLAB_NAMESPACE repository variable.
+
+on:
+  push:
+    branches: [main]
+    tags: ['*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gitlab-mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    name: Push main and tags to GitLab
+    if: ${{ !github.event.repository.private }}
+    runs-on: ubuntu-latest
+    env:
+      GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+      GITLAB_PROJECT: gitlab.com/${{ vars.GITLAB_NAMESPACE || 'sadrmanesh' }}/${{ github.event.repository.name }}
+    steps:
+      - name: Check for GITLAB_TOKEN
+        id: token
+        run: |
+          if [ -n "${GITLAB_TOKEN}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::GITLAB_TOKEN is not set; skipping the GitLab mirror."
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Checkout
+        if: steps.token.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Push to GitLab
+        if: steps.token.outputs.enabled == 'true'
+        run: |
+          set -euo pipefail
+          git fetch --tags --force origin '+refs/heads/main:refs/remotes/origin/main'
+          remote="https://oauth2:${GITLAB_TOKEN}@${GITLAB_PROJECT}.git"
+          git push "${remote}" 'refs/remotes/origin/main:refs/heads/main'
+          git push "${remote}" --tags
+          echo "Mirrored to https://${GITLAB_PROJECT}"
