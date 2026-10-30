@@ -3,10 +3,13 @@
 [![CI](https://github.com/sadrmanesh/woocommerce-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/sadrmanesh/woocommerce-mcp/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Node.js](https://img.shields.io/badge/node-%3E%3D20-339933)
+[![Docs](https://img.shields.io/badge/docs-sadrmanesh.github.io-7e57c2)](https://sadrmanesh.github.io/woocommerce-mcp/)
 
 A [Model Context Protocol](https://modelcontextprotocol.io) server for running one or more WooCommerce stores through the WooCommerce REST API. MCP clients can browse the catalog, work through orders, issue refunds, adjust prices and stock in bulk, and read sales analytics. Every change is previewed before it is applied and can be written to an audit log.
 
 It runs locally over stdio, or as a remote service over streamable HTTP with bearer-token or OAuth 2.0 authentication, and ships with a Docker image definition.
+
+**Documentation:** <https://sadrmanesh.github.io/woocommerce-mcp/>
 
 ## Contents
 
@@ -223,6 +226,8 @@ npm run check   # lint, typecheck, tests, build
 Tests run against a mocked WooCommerce API and never call a live store. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Documentation
+
+The full documentation site is at <https://sadrmanesh.github.io/woocommerce-mcp/>. The same guides are in this repository:
 
 - [Configuration](docs/configuration.md)
 - [Tools reference](docs/tools.md)

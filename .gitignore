@@ -11,3 +11,6 @@ coverage/
 # Local runtime files
 *.jsonl
 stores.json
+
+# Docs build output
+site/

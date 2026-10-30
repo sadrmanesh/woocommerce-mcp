@@ -70,3 +70,25 @@ jobs:
           curl -fsS http://127.0.0.1:3000/healthz
           test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:3000/mcp)" = "401"
           docker rm -f mcp
+
+  docs:
+    name: Docs build
+    runs-on: ubuntu-latest
+    env:
+      NO_MKDOCS_2_WARNING: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-docs.txt
+
+      - name: Install MkDocs
+        run: pip install -r requirements-docs.txt
+
+      - name: Build
+        run: mkdocs build --strict

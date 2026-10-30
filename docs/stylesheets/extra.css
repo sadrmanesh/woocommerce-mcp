@@ -1,0 +1,10 @@
+@import url("https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css");
+
+[dir="rtl"] {
+  font-family: Vazirmatn, sans-serif;
+  line-height: 1.9;
+}
+
+.md-typeset .grid.cards > ul > li {
+  border-radius: 0.6rem;
+}

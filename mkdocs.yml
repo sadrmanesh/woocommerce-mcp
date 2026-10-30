@@ -1,0 +1,92 @@
+site_name: woocommerce-mcp
+site_description: MCP server for WooCommerce with multi-store support, safe previewed writes, refunds, bulk tools, and sales analytics.
+site_author: Naser Sadrmanesh
+site_url: https://sadrmanesh.github.io/woocommerce-mcp/
+repo_url: https://github.com/sadrmanesh/woocommerce-mcp
+repo_name: sadrmanesh/woocommerce-mcp
+edit_uri: ""
+copyright: Copyright &copy; 2026 Naser Sadrmanesh
+
+theme:
+  name: material
+  language: en
+  icon:
+    logo: material/storefront-outline
+    repo: fontawesome/brands/github
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.top
+    - navigation.footer
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.tabs.link
+    - toc.follow
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: teal
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: teal
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to system preference
+
+extra_css:
+  - stylesheets/extra.css
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/sadrmanesh
+    - icon: material/web
+      link: https://sadrmanesh.github.io/
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+plugins:
+  - search
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Tools, resources, and prompts: tools.md
+  - Safe writes: safe-writes.md
+  - Configuration: configuration.md
+  - Security and authentication: security.md
+  - Deployment: deployment.md
+  - Observability: observability.md
+  - Development: development.md
+  - Changelog: changelog.md
+  - فارسی: fa.md
