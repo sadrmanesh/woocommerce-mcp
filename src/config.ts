@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import * as z from 'zod/v4';
 
+import { matchesToolPattern, TOOL_NAMES } from './tools/names.js';
 import { VERSION } from './version.js';
 import { AUTH_MODES, type AuthMode } from './woocommerce/auth.js';
 import { ConfigError } from './woocommerce/errors.js';
@@ -12,6 +13,9 @@ export type TransportMode = (typeof TRANSPORTS)[number];
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '::1']);
 const STORE_ID = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/;
 const MIN_TOKEN_LENGTH = 24;
+const MIN_WEBHOOK_SECRET_LENGTH = 16;
+const TRACKING_MODES = ['meta', 'shipment-tracking'] as const;
+export type TrackingMode = (typeof TRACKING_MODES)[number];
 
 export const SCOPES = {
   read: 'woocommerce:read',
@@ -38,6 +42,17 @@ export interface StoreConfig {
   apiVersion: string;
   authMode: AuthMode;
   readOnly: boolean;
+  /** Mask customer personal data in every tool and resource result for this store. */
+  redactPii: boolean;
+  /** Shared secret WooCommerce signs webhook deliveries with, or null when the receiver is off for this store. */
+  webhookSecret: string | null;
+  /** Tool name patterns allowed and denied for this store. An empty allow list allows every tool. */
+  tools: ToolFilter;
+}
+
+export interface ToolFilter {
+  allow: string[];
+  deny: string[];
 }
 
 /** Settings the REST client needs for one store. */
@@ -51,6 +66,15 @@ export interface ClientOptions {
   maxRetries: number;
   userAgent: string;
   debug: boolean;
+  /** Sustained requests per second to this store. 0 turns the limiter off. */
+  rateLimit: number;
+  /** Requests that may be sent at once before the rate limit applies. */
+  rateBurst: number;
+  retryBaseMs: number;
+  retryMaxMs: number;
+  /** How long GET responses are reused. 0 turns the cache off. */
+  cacheTtlMs: number;
+  cacheMaxEntries: number;
 }
 
 export interface IntrospectionConfig {
@@ -88,7 +112,20 @@ export interface AppConfig {
   httpAllowedHosts: string[];
   httpAllowedOrigins: string[];
   httpAuth: HttpAuthConfig | null;
+  rateLimit: number;
+  rateBurst: number;
+  retryBaseMs: number;
+  retryMaxMs: number;
+  cacheTtlMs: number;
+  cacheMaxEntries: number;
+  /** Tool name patterns registered at all. An empty allow list allows every tool. */
+  tools: ToolFilter;
+  webhookPath: string;
+  webhookBuffer: number;
+  trackingMode: TrackingMode;
 }
+
+const toolPatternSchema = z.string().regex(/^[a-z0-9_*]{1,80}$/, 'must be a tool name or a pattern with *');
 
 const storeEntrySchema = z
   .object({
@@ -102,6 +139,11 @@ const storeEntrySchema = z
     apiVersion: z.string().regex(/^wc\/v\d+$/, 'must look like wc/v3').optional(),
     authMode: z.enum(AUTH_MODES).optional(),
     readOnly: z.boolean().optional(),
+    redactPii: z.boolean().optional(),
+    webhookSecret: z.string().optional(),
+    webhookSecretEnv: z.string().optional(),
+    allowTools: z.array(toolPatternSchema).max(200).optional(),
+    denyTools: z.array(toolPatternSchema).max(200).optional(),
   })
   .strict();
 
@@ -136,9 +178,32 @@ export function loadConfig(env: Env, readFile: (path: string) => string = defaul
   const httpHost = parseHttpHost(env, httpAuth !== null, issues);
   const httpAllowedHosts = parseList(env.MCP_HTTP_ALLOWED_HOSTS);
   const httpAllowedOrigins = parseList(env.MCP_HTTP_ALLOWED_ORIGINS);
+  const redactPii = parseFlag(env, 'WOOCOMMERCE_REDACT_PII', false, issues);
+  const rateLimit = parseIntInRange(env, 'WOOCOMMERCE_RATE_LIMIT', 5, 0, 1_000, issues);
+  const rateBurst = parseIntInRange(env, 'WOOCOMMERCE_RATE_BURST', 10, 1, 1_000, issues);
+  const retryBaseMs = parseIntInRange(env, 'WOOCOMMERCE_RETRY_BASE_MS', 250, 10, 10_000, issues);
+  const retryMaxMs = parseIntInRange(env, 'WOOCOMMERCE_RETRY_MAX_MS', 10_000, 100, 60_000, issues);
+  const cacheTtlMs = parseIntInRange(env, 'WOOCOMMERCE_CACHE_TTL_MS', 0, 0, 3_600_000, issues);
+  const cacheMaxEntries = parseIntInRange(env, 'WOOCOMMERCE_CACHE_MAX_ENTRIES', 500, 1, 100_000, issues);
+  const webhookBuffer = parseIntInRange(env, 'WOOCOMMERCE_WEBHOOK_BUFFER', 200, 1, 10_000, issues);
+  const webhookPath = parsePath(env, 'WOOCOMMERCE_WEBHOOK_PATH', '/webhooks/woocommerce', issues);
+  const trackingMode = parseChoice(env, 'WOOCOMMERCE_TRACKING_MODE', TRACKING_MODES, issues) ?? 'meta';
+  const tools = parseToolFilter(
+    parseList(env.WOOCOMMERCE_TOOLS_ALLOW),
+    parseList(env.WOOCOMMERCE_TOOLS_DENY),
+    'WOOCOMMERCE_TOOLS_ALLOW / WOOCOMMERCE_TOOLS_DENY',
+    issues,
+  );
 
-  const { stores, documentDefault } = parseStores(env, globalReadOnly, readFile, issues);
+  const { stores, documentDefault } = parseStores(env, { readOnly: globalReadOnly, redactPii }, readFile, issues);
   const defaultStore = parseDefaultStore(env, stores, documentDefault, issues);
+
+  if (webhookPath !== undefined && httpPath !== undefined && webhookPath === httpPath) {
+    issues.push('WOOCOMMERCE_WEBHOOK_PATH: must differ from MCP_HTTP_PATH');
+  }
+  if (retryBaseMs !== undefined && retryMaxMs !== undefined && retryBaseMs > retryMaxMs) {
+    issues.push('WOOCOMMERCE_RETRY_BASE_MS: must not exceed WOOCOMMERCE_RETRY_MAX_MS');
+  }
 
   if (
     issues.length > 0 ||
@@ -149,7 +214,15 @@ export function loadConfig(env: Env, readFile: (path: string) => string = defaul
     httpPort === undefined ||
     httpPath === undefined ||
     userAgent === undefined ||
-    defaultStore === undefined
+    defaultStore === undefined ||
+    rateLimit === undefined ||
+    rateBurst === undefined ||
+    retryBaseMs === undefined ||
+    retryMaxMs === undefined ||
+    cacheTtlMs === undefined ||
+    cacheMaxEntries === undefined ||
+    webhookBuffer === undefined ||
+    webhookPath === undefined
   ) {
     throw new ConfigError(`Invalid configuration:\n${issues.map((issue) => `- ${issue}`).join('\n')}`);
   }
@@ -172,7 +245,23 @@ export function loadConfig(env: Env, readFile: (path: string) => string = defaul
     httpAllowedHosts,
     httpAllowedOrigins,
     httpAuth,
+    rateLimit,
+    rateBurst,
+    retryBaseMs,
+    retryMaxMs,
+    cacheTtlMs,
+    cacheMaxEntries,
+    tools,
+    webhookPath,
+    webhookBuffer,
+    trackingMode,
   };
+}
+
+/** True when a tool passes an allow and deny filter. Deny wins over allow. */
+export function toolAllowed(filter: ToolFilter, name: string): boolean {
+  if (filter.deny.some((pattern) => matchesToolPattern(pattern, name))) return false;
+  return filter.allow.length === 0 || filter.allow.some((pattern) => matchesToolPattern(pattern, name));
 }
 
 export function clientOptions(config: AppConfig, store: StoreConfig): ClientOptions {
@@ -186,6 +275,12 @@ export function clientOptions(config: AppConfig, store: StoreConfig): ClientOpti
     maxRetries: config.maxRetries,
     userAgent: config.userAgent,
     debug: config.debug,
+    rateLimit: config.rateLimit,
+    rateBurst: config.rateBurst,
+    retryBaseMs: config.retryBaseMs,
+    retryMaxMs: config.retryMaxMs,
+    cacheTtlMs: config.cacheTtlMs,
+    cacheMaxEntries: config.cacheMaxEntries,
   };
 }
 
@@ -210,6 +305,9 @@ export function authWarnings(config: AppConfig): string[] {
       'The HTTP endpoint has no bearer authentication while writes are enabled. Any local process can call write tools. Set MCP_HTTP_AUTH_TOKENS.',
     );
   }
+  if (config.transport !== 'http' && config.stores.some((store) => store.webhookSecret !== null)) {
+    warnings.push('A webhook secret is configured, but the webhook receiver only runs with MCP_TRANSPORT=http.');
+  }
   return warnings;
 }
 
@@ -224,9 +322,14 @@ interface ParsedStores {
   documentDefault: string | undefined;
 }
 
+interface StoreDefaults {
+  readOnly: boolean;
+  redactPii: boolean;
+}
+
 function parseStores(
   env: Env,
-  globalReadOnly: boolean,
+  defaults: StoreDefaults,
   readFile: (path: string) => string,
   issues: string[],
 ): ParsedStores {
@@ -242,7 +345,7 @@ function parseStores(
   }
 
   if (hasLegacy || (inline === undefined && file === undefined)) {
-    const legacy = parseLegacyStore(env, globalReadOnly, issues);
+    const legacy = parseLegacyStore(env, defaults, issues);
     if (legacy) stores.push(legacy);
   }
 
@@ -259,7 +362,7 @@ function parseStores(
     }
   }
   if (documentText !== undefined) {
-    const document = parseStoresDocument(documentText, source, env, issues);
+    const document = parseStoresDocument(documentText, source, env, defaults, issues);
     stores.push(...document.stores);
     documentDefault = document.defaultStore;
   }
@@ -277,6 +380,7 @@ function parseStoresDocument(
   text: string,
   source: string,
   env: Env,
+  defaults: StoreDefaults,
   issues: string[],
 ): { stores: StoreConfig[]; defaultStore: string | undefined } {
   let json: unknown;
@@ -311,7 +415,17 @@ function parseStoresDocument(
       `${label} consumerSecret`,
       issues,
     );
-    if (url === undefined || consumerKey === undefined || consumerSecret === undefined) continue;
+    const webhookSecret = resolveOptionalSecret(
+      entry.webhookSecret,
+      entry.webhookSecretEnv,
+      env,
+      `${label} webhookSecret`,
+      issues,
+    );
+    const tools = parseToolFilter(entry.allowTools ?? [], entry.denyTools ?? [], `${label} allowTools / denyTools`, issues);
+    if (url === undefined || consumerKey === undefined || consumerSecret === undefined || webhookSecret === undefined) {
+      continue;
+    }
     stores.push({
       id: entry.id,
       label: entry.label ?? null,
@@ -321,12 +435,15 @@ function parseStoresDocument(
       apiVersion: entry.apiVersion ?? 'wc/v3',
       authMode: entry.authMode ?? defaultAuthMode(url),
       readOnly: entry.readOnly ?? true,
+      redactPii: entry.redactPii ?? defaults.redactPii,
+      webhookSecret,
+      tools,
     });
   }
   return { stores, defaultStore };
 }
 
-function parseLegacyStore(env: Env, readOnly: boolean, issues: string[]): StoreConfig | undefined {
+function parseLegacyStore(env: Env, defaults: StoreDefaults, issues: string[]): StoreConfig | undefined {
   const urlText = required(env, 'WOOCOMMERCE_URL', issues);
   const url = urlText === undefined ? undefined : parseStoreUrl(urlText, 'WOOCOMMERCE_URL', issues);
   const consumerKey = parseSecret(env, 'WOOCOMMERCE_CONSUMER_KEY', issues);
@@ -338,7 +455,20 @@ function parseLegacyStore(env: Env, readOnly: boolean, issues: string[]): StoreC
     issues.push('WOOCOMMERCE_STORE_ID: must be 1 to 40 letters, digits, dashes, or underscores');
     return undefined;
   }
-  if (url === undefined || consumerKey === undefined || consumerSecret === undefined || apiVersion === undefined) {
+  const webhookSecret = resolveOptionalSecret(
+    clean(env.WOOCOMMERCE_WEBHOOK_SECRET),
+    undefined,
+    env,
+    'WOOCOMMERCE_WEBHOOK_SECRET',
+    issues,
+  );
+  if (
+    url === undefined ||
+    consumerKey === undefined ||
+    consumerSecret === undefined ||
+    apiVersion === undefined ||
+    webhookSecret === undefined
+  ) {
     return undefined;
   }
   return {
@@ -349,7 +479,10 @@ function parseLegacyStore(env: Env, readOnly: boolean, issues: string[]): StoreC
     consumerSecret,
     apiVersion,
     authMode: authMode ?? defaultAuthMode(url),
-    readOnly,
+    readOnly: defaults.readOnly,
+    redactPii: defaults.redactPii,
+    webhookSecret,
+    tools: { allow: [], deny: [] },
   };
 }
 
@@ -392,6 +525,37 @@ function resolveSecret(
     return undefined;
   }
   return parsed.data;
+}
+
+/** Returns null when no secret is set, undefined when the setting is invalid. */
+function resolveOptionalSecret(
+  direct: string | undefined,
+  envName: string | undefined,
+  env: Env,
+  label: string,
+  issues: string[],
+): string | null | undefined {
+  if (direct === undefined && envName === undefined) return null;
+  const value = resolveSecret(direct, envName, env, label, issues);
+  if (value === undefined) return undefined;
+  if (value.length < MIN_WEBHOOK_SECRET_LENGTH) {
+    issues.push(`${label}: must be at least ${MIN_WEBHOOK_SECRET_LENGTH} characters`);
+    return undefined;
+  }
+  return value;
+}
+
+function parseToolFilter(allow: string[], deny: string[], label: string, issues: string[]): ToolFilter {
+  for (const pattern of [...allow, ...deny]) {
+    if (!toolPatternSchema.safeParse(pattern).success) {
+      issues.push(`${label}: "${pattern}" must be a tool name or a pattern with *`);
+      continue;
+    }
+    if (!TOOL_NAMES.some((name) => matchesToolPattern(pattern, name))) {
+      issues.push(`${label}: "${pattern}" does not match any tool`);
+    }
+  }
+  return { allow, deny };
 }
 
 function parseHttpAuth(env: Env, issues: string[]): HttpAuthConfig | null {
@@ -554,14 +718,18 @@ function parseHttpHost(env: Env, authenticated: boolean, issues: string[]): stri
 }
 
 function parseHttpPath(env: Env, issues: string[]): string | undefined {
-  const raw = clean(env.MCP_HTTP_PATH) ?? '/mcp';
+  return parsePath(env, 'MCP_HTTP_PATH', '/mcp', issues);
+}
+
+function parsePath(env: Env, name: string, fallback: string, issues: string[]): string | undefined {
+  const raw = clean(env[name]) ?? fallback;
   const value = raw.length > 1 ? raw.replace(/\/+$/, '') : raw;
   const parsed = z
     .string()
     .regex(/^\/(?:[A-Za-z0-9._~-]+(?:\/[A-Za-z0-9._~-]+)*)?$/, 'must be an absolute path such as /mcp')
     .safeParse(value);
   if (!parsed.success) {
-    issues.push('MCP_HTTP_PATH: must be an absolute path such as /mcp');
+    issues.push(`${name}: must be an absolute path such as ${fallback}`);
     return undefined;
   }
   return parsed.data;

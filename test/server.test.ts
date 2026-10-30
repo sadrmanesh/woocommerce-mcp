@@ -19,8 +19,8 @@ describe('MCP server', () => {
   it('matches the package version', () => {
     const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string };
     assert.equal(pkg.version, VERSION);
-    assert.equal(VERSION, '0.2.0');
-    assert.equal(TOOL_NAMES.length, 24);
+    assert.equal(VERSION, '0.3.0');
+    assert.equal(TOOL_NAMES.length, 47);
     assert.equal(new Set(TOOL_NAMES).size, TOOL_NAMES.length);
   });
 
@@ -138,6 +138,8 @@ describe('MCP server', () => {
       assert.ok(resources.resources.some((resource) => resource.uri === 'woocommerce://stores'));
       const templates = await client.listResourceTemplates();
       assert.deepEqual(templates.resourceTemplates.map((template) => template.uriTemplate).sort(), [
+        'woocommerce://stores/{store}/events',
+        'woocommerce://stores/{store}/events/{id}',
         'woocommerce://stores/{store}/orders/{id}',
         'woocommerce://stores/{store}/products/{id}',
       ]);
@@ -172,7 +174,7 @@ async function withClient(
   const transport = new StreamableHTTPClientTransport(new URL('http://127.0.0.1/mcp'), {
     fetch: (url, init) => handler.fetch(new Request(url, init)),
   });
-  const client = new Client({ name: 'woocommerce-mcp-test', version: '0.2.0' }, { versionNegotiation: { mode: 'auto' } });
+  const client = new Client({ name: 'woocommerce-mcp-test', version: '0.3.0' }, { versionNegotiation: { mode: 'auto' } });
   await client.connect(transport);
   try {
     await run(client);

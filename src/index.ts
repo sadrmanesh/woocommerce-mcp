@@ -38,7 +38,19 @@ export async function main(env: NodeJS.ProcessEnv = process.env, options: MainOp
   const quiet = options.quiet ?? false;
   const signals = options.signals ?? true;
   if (config.transport === 'http') {
-    const http = await startHttpServer(factory, config, { signals: false, quiet });
+    const http = await startHttpServer(factory, config, {
+      signals: false,
+      quiet,
+      webhooks: {
+        path: config.webhookPath,
+        events: runtime.events,
+        storeSecret: (id) => {
+          const store = runtime.stores.find((entry) => entry.config.id.toLowerCase() === id.toLowerCase());
+          const secret = store?.config.webhookSecret;
+          return store && secret ? { id: store.config.id, secret } : null;
+        },
+      },
+    });
     if (signals) {
       installShutdown(async () => {
         await http.close();

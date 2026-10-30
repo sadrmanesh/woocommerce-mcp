@@ -10,6 +10,9 @@ RUN npm run build && npm prune --omit=dev --ignore-scripts
 
 FROM node:22-alpine AS runtime
 ARG OTEL=false
+LABEL io.modelcontextprotocol.server.name="io.github.sadrmanesh/woocommerce-mcp" \
+      org.opencontainers.image.source="https://github.com/sadrmanesh/woocommerce-mcp" \
+      org.opencontainers.image.licenses="MIT"
 ENV NODE_ENV=production \
     MCP_TRANSPORT=http \
     MCP_HTTP_HOST=0.0.0.0 \

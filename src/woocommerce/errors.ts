@@ -88,3 +88,12 @@ export class UnknownStoreError extends Error {
     this.name = 'UnknownStoreError';
   }
 }
+
+export class ToolDisabledError extends Error {
+  readonly code = 'tool_disabled' as const;
+
+  constructor(toolName: string, storeId: string) {
+    super(`Refused to run ${toolName}: the tool is disabled for store "${storeId}" by its allowTools or denyTools setting.`);
+    this.name = 'ToolDisabledError';
+  }
+}

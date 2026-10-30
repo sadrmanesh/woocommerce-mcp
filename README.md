@@ -5,7 +5,7 @@
 ![Node.js](https://img.shields.io/badge/node-%3E%3D20-339933)
 [![Docs](https://img.shields.io/badge/docs-sadrmanesh.github.io-7e57c2)](https://sadrmanesh.github.io/woocommerce-mcp/)
 
-A [Model Context Protocol](https://modelcontextprotocol.io) server for running one or more WooCommerce stores through the WooCommerce REST API. MCP clients can browse the catalog, work through orders, issue refunds, adjust prices and stock in bulk, and read sales analytics. Every change is previewed before it is applied and can be written to an audit log.
+A [Model Context Protocol](https://modelcontextprotocol.io) server for running one or more WooCommerce stores through the WooCommerce REST API. MCP clients can browse the catalog, work through and fulfill orders, issue refunds, adjust prices and stock in bulk, run promotions, segment customers, react to webhooks, and read sales analytics. Every change is previewed before it is applied and can be written to an audit log.
 
 It runs locally over stdio, or as a remote service over streamable HTTP with bearer-token or OAuth 2.0 authentication, and ships with a Docker image definition.
 
@@ -29,7 +29,13 @@ It runs locally over stdio, or as a remote service over streamable HTTP with bea
 - **Safe by default.** Stores are read-only until you allow writes. Write tools then return a preview of the exact REST request and apply it only when called again with `confirm: true`. `dryRun: true` always previews.
 - **Audit log.** One JSON line per write attempt: applied, previewed, refused, or failed, with the tool, store, arguments, and caller.
 - **Refunds and bulk operations.** Partial or line-item refunds, batch updates of up to 100 products, and percentage or fixed price adjustments.
-- **Analytics.** Sales by day, week, or month with refunds, average order value, top products, and payment methods, plus a low-stock report.
+- **Analytics.** Sales by day, week, or month with refunds, average order value, top products, and payment methods, plus a low-stock report that covers variations.
+- **Promotions and customers.** Coupon performance, scheduled sales, and customer segments such as VIP, repeat, and at risk.
+- **Fulfillment.** Order notes, shipment tracking, and one-step fulfillment that emails the customer.
+- **Webhooks.** Manage store webhooks and receive signed deliveries, readable as MCP resources.
+- **Shipping and taxes.** Read shipping zones, methods, tax rates, and tax classes.
+- **Privacy and control.** Optional PII redaction, and tool allow and deny lists per deployment or per store.
+- **Gentle on the store.** Per-store rate limiting, retries with backoff and jitter, and an optional read cache.
 - **Remote ready.** Streamable HTTP with static bearer tokens (full or read-only) or RFC 7662 token introspection, RFC 9728 protected resource metadata, Host and Origin checks, and a health endpoint.
 - **MCP resources and prompts.** Read products and orders by URI, and start common workflows such as a sales briefing or a restock plan.
 - **Observability.** Optional OpenTelemetry traces for every tool call and WooCommerce request.
@@ -40,7 +46,7 @@ It runs locally over stdio, or as a remote service over streamable HTTP with bea
 Node.js 20 or newer is required.
 
 ```bash
-npm install -g woocommerce-mcp
+npm install -g @sadrmanesh/woocommerce-mcp
 ```
 
 Or from a checkout:
@@ -66,7 +72,7 @@ The process then serves MCP on stdin and stdout. Logs go to stderr. `npm start` 
 
 ## Connect an MCP client
 
-Most hosts accept an `mcpServers` map like the ones below. Keep secrets in `env`, never in `args`.
+Most hosts accept an `mcpServers` map like the ones below. Keep secrets in `env`, never in `args`. Docker, Smithery, and MCP Registry installs are in [docs/install.md](docs/install.md).
 
 ### stdio
 
@@ -75,7 +81,7 @@ Most hosts accept an `mcpServers` map like the ones below. Keep secrets in `env`
   "mcpServers": {
     "woocommerce": {
       "command": "npx",
-      "args": ["-y", "woocommerce-mcp"],
+      "args": ["-y", "@sadrmanesh/woocommerce-mcp"],
       "env": {
         "WOOCOMMERCE_URL": "https://store.example.com",
         "WOOCOMMERCE_CONSUMER_KEY": "ck_your_consumer_key",
@@ -112,32 +118,21 @@ Without authentication the HTTP endpoint only binds to loopback. See [docs/secur
 
 Every tool except `woocommerce_list_stores` accepts an optional `store` id. Without it, the default store is used.
 
-| Tool | Access | Purpose |
+| Area | Read tools | Write tools |
 | --- | --- | --- |
-| `woocommerce_list_stores` | read | Configured stores, the default, and write mode |
-| `woocommerce_list_products` | read | Filter the catalog |
-| `woocommerce_search_products` | read | Search name, SKU, and description |
-| `woocommerce_get_product` | read | One product, without `_links` |
-| `woocommerce_create_product` | write | Create a product |
-| `woocommerce_update_product` | write | Update the fields you send |
-| `woocommerce_bulk_update_products` | write | Price, stock, or status for up to 100 products in one batch |
-| `woocommerce_bulk_adjust_prices` | write | Raise or lower prices by a percentage or fixed amount |
-| `woocommerce_list_orders` | read | Filter orders |
-| `woocommerce_get_order` | read | One order, including line items |
-| `woocommerce_update_order_status` | write | Set order status |
-| `woocommerce_add_order_note` | write | Add a private or customer-visible note |
-| `woocommerce_list_refunds` | read | Refunds on an order |
-| `woocommerce_get_refund` | read | One refund |
-| `woocommerce_create_refund` | write | Refund an amount or specific line items |
-| `woocommerce_list_customers` | read | Filter customers |
-| `woocommerce_get_customer` | read | One customer |
-| `woocommerce_get_stock` | read | Stock for a product or variation |
-| `woocommerce_update_stock` | write | Set quantity or stock status |
-| `woocommerce_get_store_summary` | read | Sales, top sellers, and totals from the reports API |
-| `woocommerce_sales_analytics` | read | Sales series, refunds, AOV, top products, payment methods |
-| `woocommerce_low_stock_report` | read | Products at or below a stock threshold |
-| `woocommerce_list_coupons` | read | Filter coupons |
-| `woocommerce_create_coupon` | write | Create a coupon |
+| Stores | `list_stores` | |
+| Products | `list_products`, `search_products`, `get_product` | `create_product`, `update_product`, `bulk_update_products`, `bulk_adjust_prices` |
+| Orders | `list_orders`, `get_order`, `list_order_notes` | `update_order_status`, `add_order_note`, `delete_order_note` |
+| Fulfillment | `get_order_tracking` | `fulfill_order` |
+| Refunds | `list_refunds`, `get_refund` | `create_refund` |
+| Customers | `list_customers`, `get_customer`, `customer_orders`, `customer_segments` | `update_customer` |
+| Stock | `get_stock`, `low_stock_report` | `update_stock` |
+| Coupons and sales | `list_coupons`, `get_coupon`, `coupon_performance` | `create_coupon`, `update_coupon`, `delete_coupon`, `schedule_sale`, `end_sale` |
+| Webhooks | `list_webhooks`, `get_webhook`, `list_webhook_events` | `create_webhook`, `update_webhook`, `delete_webhook` |
+| Shipping and taxes | `list_shipping_zones`, `list_shipping_methods`, `list_tax_rates`, `list_tax_classes` | |
+| Analytics | `get_store_summary`, `sales_analytics` | |
+
+Every name starts with `woocommerce_`, for example `woocommerce_customer_segments`. That makes 47 tools: 28 reads and 19 writes.
 
 **Resources**
 
@@ -146,6 +141,8 @@ Every tool except `woocommerce_list_stores` accepts an optional `store` id. With
 | `woocommerce://stores` | Configured stores |
 | `woocommerce://stores/{store}/products/{id}` | One product |
 | `woocommerce://stores/{store}/orders/{id}` | One order |
+| `woocommerce://stores/{store}/events` | Recent webhook deliveries |
+| `woocommerce://stores/{store}/events/{id}` | One webhook delivery with its payload |
 
 **Prompts:** `sales_briefing`, `restock_plan`, `order_triage`, and `price_change_review`.
 
@@ -192,6 +189,11 @@ The most common settings are below. Every variable, including the multi-store fi
 | `MCP_HTTP_HOST` / `_PORT` / `_PATH` | `127.0.0.1` / `3000` / `/mcp` | HTTP listener |
 | `MCP_HTTP_AUTH_TOKENS` | | Full-access bearer tokens |
 | `MCP_HTTP_AUTH_READ_TOKENS` | | Read-only bearer tokens |
+| `WOOCOMMERCE_REDACT_PII` | `false` | Mask names, emails, phones, and addresses in results |
+| `WOOCOMMERCE_TOOLS_ALLOW` / `_DENY` | | Tool names or `*` patterns to expose or hide |
+| `WOOCOMMERCE_WEBHOOK_SECRET` | | Enables the webhook receiver for the store |
+| `WOOCOMMERCE_RATE_LIMIT` / `_BURST` | `5` / `10` | Requests per second per store, and burst |
+| `WOOCOMMERCE_CACHE_TTL_MS` | `0` (off) | Cache read responses |
 | `WOOCOMMERCE_OTEL_ENABLED` | `false` | Export OpenTelemetry traces |
 
 Multi-store example (`stores.json`):
@@ -229,8 +231,12 @@ Tests run against a mocked WooCommerce API and never call a live store. See [CON
 
 The full documentation site is at <https://sadrmanesh.github.io/woocommerce-mcp/>. The same guides are in this repository:
 
+- [Install options](docs/install.md)
 - [Configuration](docs/configuration.md)
 - [Tools reference](docs/tools.md)
+- [Webhooks](docs/webhooks.md)
+- [Privacy](docs/privacy.md)
+- [Performance](docs/performance.md)
 - [Security and authentication](docs/security.md)
 - [Deployment](docs/deployment.md)
 - [Observability](docs/observability.md)

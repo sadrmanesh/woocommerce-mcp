@@ -134,7 +134,7 @@ export function adjustPrice(base: number, mode: 'percent' | 'fixed', change: num
   return Math.sign(raw) * Math.round(Math.abs(raw) * factor + 1e-9) / factor;
 }
 
-async function sendBatch(ctx: ToolContext, update: Record<string, unknown>[]): Promise<BatchOutcome> {
+export async function sendBatch(ctx: ToolContext, update: Record<string, unknown>[]): Promise<BatchOutcome> {
   const response = await ctx.client.post('products/batch', { update });
   const data = isRecord(response.data) ? response.data : {};
   const rows = Array.isArray(data.update) ? data.update : [];

@@ -50,7 +50,7 @@ export function registerAnalyticsTools(server: McpServer, runtime: Runtime): voi
     name: toolNames.lowStockReport,
     title: 'Low stock report',
     description:
-      'List products whose managed stock is at or below a threshold, plus out-of-stock products, sorted by quantity so the most urgent come first.',
+      'List products and variations whose managed stock is at or below a threshold, plus out-of-stock items, sorted by quantity so the most urgent come first. Variations of variable products are checked one by one unless the parent manages stock for all of them.',
     input: lowStockReportInput,
     annotations: READ,
     write: false,
@@ -166,23 +166,45 @@ export async function salesAnalytics(ctx: ToolContext, input: SalesAnalyticsInpu
 
 export interface LowStockItem {
   id: number | null;
+  /** Set for variations: the parent product id. */
+  parentId: number | null;
+  type: 'product' | 'variation';
   name: string | null;
   sku: string | null;
   stockQuantity: number | null;
   stockStatus: string | null;
 }
 
-export async function lowStockReport(
-  ctx: ToolContext,
-  input: LowStockReportInput,
-): Promise<{ threshold: number; scanned: number; truncated: boolean; items: LowStockItem[] }> {
+export interface LowStockReport {
+  threshold: number;
+  scanned: number;
+  variationsScanned: number;
+  truncated: boolean;
+  items: LowStockItem[];
+}
+
+export async function lowStockReport(ctx: ToolContext, input: LowStockReportInput): Promise<LowStockReport> {
   const threshold = input.threshold ?? 5;
   const includeOut = input.includeOutOfStock ?? true;
+  const includeVariations = input.includeVariations ?? true;
   const maxProducts = input.maxProducts ?? 500;
+  const maxVariations = input.maxVariations ?? 2_000;
   const items: LowStockItem[] = [];
   let scanned = 0;
+  let variationsScanned = 0;
   let truncated = false;
 
+  const check = (row: Record<string, unknown>, managed: boolean, extra: Pick<LowStockItem, 'parentId' | 'type' | 'name'>): void => {
+    const quantity = asCount(row.stock_quantity);
+    const status = asString(row.stock_status);
+    const low = managed && quantity !== null && quantity <= threshold;
+    const out = includeOut && status === 'outofstock';
+    if (low || out) {
+      items.push({ id: asCount(row.id), ...extra, sku: asString(row.sku), stockQuantity: quantity, stockStatus: status });
+    }
+  };
+
+  const variable: { id: number; name: string | null }[] = [];
   for (let page = 1; ; page += 1) {
     const response = await ctx.client.get('products', {
       page,
@@ -199,13 +221,14 @@ export async function lowStockReport(
       }
       scanned += 1;
       if (!isRecord(row)) continue;
-      const quantity = asCount(row.stock_quantity);
-      const status = asString(row.stock_status);
-      const low = row.manage_stock === true && quantity !== null && quantity <= threshold;
-      const out = includeOut && status === 'outofstock';
-      if (low || out) {
-        items.push({ id: asCount(row.id), name: asString(row.name), sku: asString(row.sku), stockQuantity: quantity, stockStatus: status });
+      const id = asCount(row.id);
+      const name = asString(row.name);
+      // A variable product either tracks stock for all variations at once, or leaves it to each variation.
+      if (includeVariations && row.type === 'variable' && row.manage_stock !== true && id !== null) {
+        variable.push({ id, name });
+        continue;
       }
+      check(row, row.manage_stock === true, { parentId: null, type: 'product', name });
     }
     const totalPages = response.pagination.totalPages;
     if (truncated || rows.length < PAGE_SIZE || (totalPages !== null && page >= totalPages)) break;
@@ -215,8 +238,49 @@ export async function lowStockReport(
     }
   }
 
+  outer: for (const parent of variable) {
+    for (let page = 1; ; page += 1) {
+      const response = await ctx.client.get(`products/${parent.id}/variations`, {
+        page,
+        per_page: PAGE_SIZE,
+        orderby: 'id',
+        order: 'asc',
+      });
+      const rows = expectArray(response.data, 'variation list');
+      for (const row of rows) {
+        if (variationsScanned >= maxVariations) {
+          truncated = true;
+          break outer;
+        }
+        variationsScanned += 1;
+        if (!isRecord(row)) continue;
+        // Variations report manage_stock: "parent" when they inherit the parent's setting.
+        check(row, row.manage_stock === true, {
+          parentId: parent.id,
+          type: 'variation',
+          name: variationName(parent.name, row),
+        });
+      }
+      const totalPages = response.pagination.totalPages;
+      if (rows.length < PAGE_SIZE || (totalPages !== null && page >= totalPages)) break;
+    }
+  }
+
   items.sort((a, b) => (a.stockQuantity ?? -1) - (b.stockQuantity ?? -1));
-  return { threshold, scanned, truncated, items };
+  return { threshold, scanned, variationsScanned, truncated, items };
+}
+
+function variationName(parentName: string | null, row: Record<string, unknown>): string | null {
+  const own = asString(row.name);
+  if (own !== null && own !== '') return own;
+  const options = Array.isArray(row.attributes)
+    ? row.attributes
+        .filter(isRecord)
+        .map((attribute) => asString(attribute.option))
+        .filter((option): option is string => option !== null && option !== '')
+    : [];
+  if (options.length === 0) return parentName;
+  return `${parentName ?? 'Variation'} - ${options.join(', ')}`;
 }
 
 function toUnits(value: unknown): number {

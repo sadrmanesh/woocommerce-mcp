@@ -1,6 +1,7 @@
 {
-  "name": "woocommerce-mcp",
-  "version": "0.2.0",
+  "name": "@sadrmanesh/woocommerce-mcp",
+  "mcpName": "io.github.sadrmanesh/woocommerce-mcp",
+  "version": "0.3.0",
   "description": "MCP server for managing one or more WooCommerce stores through the WooCommerce REST API, over stdio or authenticated streamable HTTP.",
   "type": "module",
   "license": "MIT",

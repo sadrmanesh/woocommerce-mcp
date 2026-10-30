@@ -4,6 +4,7 @@ import {
   ForbiddenError,
   InputError,
   ReadOnlyModeError,
+  ToolDisabledError,
   UnknownStoreError,
   WooCommerceApiError,
 } from '../woocommerce/errors.js';
@@ -50,7 +51,8 @@ export function serializeError(error: unknown): ErrorPayload {
     error instanceof ReadOnlyModeError ||
     error instanceof InputError ||
     error instanceof ForbiddenError ||
-    error instanceof UnknownStoreError
+    error instanceof UnknownStoreError ||
+    error instanceof ToolDisabledError
   ) {
     return { error: { message: error.message, code: error.code } };
   }

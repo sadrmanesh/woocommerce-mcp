@@ -81,9 +81,13 @@ plugins:
 nav:
   - Home: index.md
   - Getting started: getting-started.md
+  - Install options: install.md
   - Tools, resources, and prompts: tools.md
   - Safe writes: safe-writes.md
   - Configuration: configuration.md
+  - Webhooks: webhooks.md
+  - Privacy: privacy.md
+  - Performance: performance.md
   - Security and authentication: security.md
   - Deployment: deployment.md
   - Observability: observability.md

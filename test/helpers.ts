@@ -2,6 +2,7 @@ import { type AuditLog, memoryAuditLog } from '../src/audit.js';
 import { type AppConfig, type ClientOptions, clientOptions, type StoreConfig } from '../src/config.js';
 import { createRuntime } from '../src/server.js';
 import type { Runtime, ToolContext } from '../src/tools/context.js';
+import { WebhookEventStore } from '../src/webhooks.js';
 import { WooCommerceClient, type ClientHooks } from '../src/woocommerce/client.js';
 
 export function testStore(overrides: Partial<StoreConfig> = {}): StoreConfig {
@@ -14,6 +15,9 @@ export function testStore(overrides: Partial<StoreConfig> = {}): StoreConfig {
     apiVersion: 'wc/v3',
     authMode: 'basic',
     readOnly: true,
+    redactPii: false,
+    webhookSecret: null,
+    tools: { allow: [], deny: [] },
     ...overrides,
   };
 }
@@ -25,7 +29,7 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     timeoutMs: 5_000,
     maxRetries: 2,
     defaultPerPage: 10,
-    userAgent: 'woocommerce-mcp/0.2.0',
+    userAgent: 'woocommerce-mcp/0.3.0',
     debug: false,
     requireConfirmation: true,
     auditLog: null,
@@ -37,6 +41,16 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     httpAllowedHosts: [],
     httpAllowedOrigins: [],
     httpAuth: null,
+    rateLimit: 0,
+    rateBurst: 10,
+    retryBaseMs: 250,
+    retryMaxMs: 10_000,
+    cacheTtlMs: 0,
+    cacheMaxEntries: 500,
+    tools: { allow: [], deny: [] },
+    webhookPath: '/webhooks/woocommerce',
+    webhookBuffer: 200,
+    trackingMode: 'meta',
     ...overrides,
   };
 }
@@ -121,12 +135,17 @@ export function clientWith(
 
 export function toolContext(
   client: WooCommerceClient,
-  overrides: { readOnly?: boolean; defaultPerPage?: number } = {},
+  overrides: Partial<Omit<ToolContext, 'client'>> = {},
 ): ToolContext {
   return {
     client,
-    readOnly: overrides.readOnly ?? true,
-    defaultPerPage: overrides.defaultPerPage ?? 10,
+    readOnly: true,
+    defaultPerPage: 10,
+    storeId: 'default',
+    events: new WebhookEventStore(50),
+    trackingMode: 'meta',
+    webhookSecret: null,
+    ...overrides,
   };
 }
 
