@@ -32,7 +32,7 @@ Add this to your host's MCP server settings. Most hosts use an `mcpServers` map 
 }
 ```
 
-Pin a version with `"@sadrmanesh/woocommerce-mcp@0.3.0"` to control upgrades. Add any variable from [Configuration](configuration.md) to `env`, for example `"WOOCOMMERCE_REDACT_PII": "true"`.
+Pin a version with `"@sadrmanesh/woocommerce-mcp@0.3.1"` to control upgrades. Add any variable from [Configuration](configuration.md) to `env`, for example `"WOOCOMMERCE_REDACT_PII": "true"`.
 
 ## Docker
 
@@ -83,9 +83,9 @@ The server always runs over stdio there.
 
 ## MCP Registry
 
-`server.json` describes the server for the [MCP Registry](https://github.com/modelcontextprotocol/registry) under the name `io.github.sadrmanesh/woocommerce-mcp`. It points to the `@sadrmanesh/woocommerce-mcp` npm package, started with `npx` over stdio, and lists the environment variables a host should ask for. The `mcpName` field in `package.json` proves the npm package belongs to that name.
+The server is listed on the official [MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.sadrmanesh/woocommerce-mcp). `server.json` describes it under the name `io.github.sadrmanesh/woocommerce-mcp`. It points to the `@sadrmanesh/woocommerce-mcp` npm package, started with `npx` over stdio, and lists the environment variables a host should ask for. The `mcpName` field in `package.json` proves the npm package belongs to that name.
 
-Hosts that read the registry can install the server from it. To publish a new version, a maintainer updates the version in `server.json` (a test checks that it matches `package.json`), publishes to npm, and runs `mcp-publisher publish`.
+Hosts that read the registry can install the server from it. To publish a new version, a maintainer updates the version in `server.json` (a test checks that it matches `package.json`) and pushes a version tag. The release workflow publishes the package to npm, then signs in to the registry with GitHub OIDC and runs `mcp-publisher publish`, so no registry token is stored in the repository.
 
 ## Remote HTTP
 
