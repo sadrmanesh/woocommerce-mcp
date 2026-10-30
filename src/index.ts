@@ -8,10 +8,10 @@ import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import { authWarnings, loadConfig, publicStoreLabel } from './config.js';
 import { loadEnvFile } from './env-file.js';
 import { startHttpServer } from './http.js';
-import { createServer } from './server.js';
+import { createRuntime, createServer } from './server.js';
+import { startTelemetry } from './telemetry.js';
 import { installShutdown } from './shutdown.js';
 import { VERSION } from './version.js';
-import { WooCommerceClient } from './woocommerce/client.js';
 import { ConfigError } from './woocommerce/errors.js';
 
 export interface MainOptions {
@@ -32,24 +32,33 @@ export async function main(env: NodeJS.ProcessEnv = process.env, options: MainOp
   for (const warning of authWarnings(config)) {
     console.error(`woocommerce-mcp warning: ${warning}`);
   }
-  const client = new WooCommerceClient(config);
-  const factory = (): ReturnType<typeof createServer> => createServer({ config, client });
+  const telemetry = config.telemetry ? await startTelemetry() : null;
+  const runtime = createRuntime(config);
+  const factory = (): ReturnType<typeof createServer> => createServer({ runtime });
+  const quiet = options.quiet ?? false;
+  const signals = options.signals ?? true;
   if (config.transport === 'http') {
-    await startHttpServer(factory, config, {
-      signals: options.signals ?? true,
-      quiet: options.quiet ?? false,
-    });
+    const http = await startHttpServer(factory, config, { signals: false, quiet });
+    if (signals) {
+      installShutdown(async () => {
+        await http.close();
+        await telemetry?.shutdown();
+      });
+    }
     return;
   }
-  if (!(options.quiet ?? false)) {
-    const mode = config.readOnly ? 'read-only' : 'writes enabled';
-    console.error(
-      `woocommerce-mcp ${VERSION} listening on stdio (${mode}) for ${publicStoreLabel(config.url)}`,
-    );
+  if (!quiet) {
+    const stores = config.stores
+      .map((store) => `${store.id}=${publicStoreLabel(store.url)}${store.readOnly ? ' (read-only)' : ' (writes enabled)'}`)
+      .join(', ');
+    console.error(`woocommerce-mcp ${VERSION} listening on stdio for ${stores}`);
   }
   const handle = serveStdio(factory);
-  if (options.signals ?? true) {
-    installShutdown(() => handle.close());
+  if (signals) {
+    installShutdown(async () => {
+      await handle.close();
+      await telemetry?.shutdown();
+    });
   }
 }
 
@@ -74,6 +83,9 @@ if (runningAsCli()) {
 
 export { VERSION } from './version.js';
 export { loadConfig, authWarnings, publicStoreLabel } from './config.js';
-export type { AppConfig } from './config.js';
-export { createServer } from './server.js';
+export type { AppConfig, StoreConfig } from './config.js';
+export { createRuntime, createServer } from './server.js';
+export { createAuditLog, memoryAuditLog } from './audit.js';
+export type { AuditEntry, AuditLog } from './audit.js';
+export type { Runtime } from './tools/context.js';
 export { WooCommerceClient } from './woocommerce/client.js';

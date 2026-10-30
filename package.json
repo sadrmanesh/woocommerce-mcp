@@ -1,7 +1,7 @@
 {
   "name": "woocommerce-mcp",
-  "version": "0.1.0",
-  "description": "MCP server for reading and managing a WooCommerce store through the WooCommerce REST API.",
+  "version": "0.2.0",
+  "description": "MCP server for managing one or more WooCommerce stores through the WooCommerce REST API, over stdio or authenticated streamable HTTP.",
   "type": "module",
   "license": "MIT",
   "author": {
@@ -22,7 +22,10 @@
     "model-context-protocol",
     "woocommerce",
     "wordpress",
-    "ecommerce"
+    "ecommerce",
+    "mcp-server",
+    "streamable-http",
+    "opentelemetry"
   ],
   "engines": {
     "node": ">=20"
@@ -42,7 +45,8 @@
     "dist",
     "LICENSE",
     "README.md",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "docs"
   ],
   "publishConfig": {
     "access": "public"
@@ -60,15 +64,33 @@
   "dependencies": {
     "@modelcontextprotocol/node": "^2.0.0",
     "@modelcontextprotocol/server": "^2.0.0",
+    "@opentelemetry/api": "^1.9.0",
     "zod": "^4.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@modelcontextprotocol/client": "^2.0.0",
+    "@opentelemetry/sdk-trace-base": "^2.12.0",
     "@types/node": "^22.0.0",
     "eslint": "^10.14.0",
     "tsx": "^4.0.0",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.0.0"
+  },
+  "peerDependencies": {
+    "@opentelemetry/exporter-trace-otlp-http": ">=0.200.0",
+    "@opentelemetry/resources": "^2.0.0",
+    "@opentelemetry/sdk-trace-base": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@opentelemetry/exporter-trace-otlp-http": {
+      "optional": true
+    },
+    "@opentelemetry/resources": {
+      "optional": true
+    },
+    "@opentelemetry/sdk-trace-base": {
+      "optional": true
+    }
   }
 }

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { WooCommerceApiError } from '../src/woocommerce/errors.js';
-import { clientWith, createFetchMock, jsonResponse, queryParam, testConfig } from './helpers.js';
+import { clientWith, createFetchMock, jsonResponse, queryParam, testClientOptions } from './helpers.js';
 import { WooCommerceClient } from '../src/woocommerce/client.js';
 
 describe('WooCommerceClient', () => {
@@ -54,7 +54,7 @@ describe('WooCommerceClient', () => {
       }
       return jsonResponse({ id: 2 });
     });
-    const client = new WooCommerceClient(testConfig(), {
+    const client = new WooCommerceClient(testClientOptions(), {
       fetchImpl,
       sleep: async (ms) => {
         sleeps.push(ms);
@@ -88,7 +88,7 @@ describe('WooCommerceClient', () => {
       return jsonResponse([{ id: 1 }]);
     });
     const sleeps: number[] = [];
-    const client = new WooCommerceClient(testConfig(), {
+    const client = new WooCommerceClient(testClientOptions(), {
       fetchImpl,
       sleep: async (ms) => {
         sleeps.push(ms);

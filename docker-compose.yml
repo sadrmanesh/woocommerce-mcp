@@ -1,0 +1,35 @@
+# Runs the server over streamable HTTP on port 3000.
+# 1. Copy .env.example to .env and fill in the store credentials.
+# 2. Set MCP_HTTP_AUTH_TOKENS (the container listens on all interfaces, so a token is required).
+# 3. docker compose up -d --build
+services:
+  woocommerce-mcp:
+    build:
+      context: .
+      args:
+        OTEL: "false"
+    image: woocommerce-mcp:0.2.0
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      MCP_TRANSPORT: http
+      MCP_HTTP_HOST: 0.0.0.0
+      MCP_HTTP_PORT: "3000"
+      WOOCOMMERCE_AUDIT_LOG: /data/audit.jsonl
+      # Uncomment to load several stores from a mounted file.
+      # WOOCOMMERCE_STORES_FILE: /config/stores.json
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - audit:/data
+      # - ./stores.json:/config/stores.json:ro
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+volumes:
+  audit:

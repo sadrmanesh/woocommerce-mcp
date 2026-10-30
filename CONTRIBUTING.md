@@ -23,9 +23,15 @@ Do not put real consumer keys or customer data in tests, fixtures, or commit mes
 2. Keep the change focused. Match the existing TypeScript style: ESM, strict compiler options, and `.js` extensions on local imports.
 3. Add or update tests for behavior you change. HTTP tests should keep using a mocked `fetch`.
 4. Run `npm run check` before you open the pull request.
-5. Describe what changed and how you tested it. Update the README when configuration or tool behavior changes, and add a `CHANGELOG.md` entry under `[Unreleased]`.
+5. Describe what changed and how you tested it. Update the README and `docs/` when configuration or tool behavior changes, and add a `CHANGELOG.md` entry under `[Unreleased]`.
 
-Write tools stay behind `WOOCOMMERCE_READ_ONLY`. New write tools need the same guard, `readOnlyHint: false`, and a description that says they are refused in read-only mode.
+Define tools with `defineTool` from `src/tools/registry.ts`. Mark write tools with `write: true` and one of the write annotation presets; the registry then adds the `store`, `dryRun`, and `confirm` arguments and handles read-only stores, token scopes, previews, the audit log, and tracing. Make the write the last step of a tool so previews show the request that matters. Document new tools in `docs/tools.md`.
+
+## Releases
+
+1. Update the version in `package.json` and `src/version.ts`, and move the `[Unreleased]` notes in `CHANGELOG.md` under the new version.
+2. Merge to `main`, then push a tag such as `v0.2.0`.
+3. The release workflow runs `npm run check`, confirms the tag matches the package version, and publishes to npm with the `NPM_TOKEN` repository secret. Without the secret it stops before publishing.
 
 ## Reporting issues
 

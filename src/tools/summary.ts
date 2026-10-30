@@ -4,32 +4,24 @@ import type * as z from 'zod/v4';
 import { InputError } from '../woocommerce/errors.js';
 import type { QueryParams } from '../woocommerce/client.js';
 import { summarizeSales, summarizeTopSellers, summarizeTotals } from '../woocommerce/present.js';
-import type { ToolContext } from './context.js';
+import type { Runtime, ToolContext } from './context.js';
 import { toolNames } from './names.js';
-import { execute } from './result.js';
+import { defineTool, READ } from './registry.js';
 import { storeSummaryInput } from './schemas.js';
-
-const readAnnotations = {
-  readOnlyHint: true,
-  destructiveHint: false,
-  idempotentHint: true,
-  openWorldHint: true,
-} as const;
 
 export type StoreSummaryInput = z.infer<typeof storeSummaryInput>;
 
-export function registerSummaryTools(server: McpServer, ctx: ToolContext): void {
-  server.registerTool(
-    toolNames.getStoreSummary,
-    {
-      title: 'Store summary',
-      description:
-        'Summarize recent sales, top sellers, and current totals for orders, products, and customers from the WooCommerce reports API. Order, product, and customer totals are current counts and do not take the date range.',
-      inputSchema: storeSummaryInput,
-      annotations: readAnnotations,
-    },
-    async (input) => execute(ctx, toolNames.getStoreSummary, false, () => getStoreSummary(ctx, input)),
-  );
+export function registerSummaryTools(server: McpServer, runtime: Runtime): void {
+  defineTool(server, runtime, {
+    name: toolNames.getStoreSummary,
+    title: 'Store summary',
+    description:
+      'Summarize recent sales, top sellers, and current totals for orders, products, and customers from the WooCommerce reports API. Order, product, and customer totals are current counts and do not take the date range.',
+    input: storeSummaryInput,
+    annotations: READ,
+    write: false,
+    run: getStoreSummary,
+  });
 }
 
 export async function getStoreSummary(ctx: ToolContext, input: StoreSummaryInput) {

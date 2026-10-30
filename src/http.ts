@@ -1,15 +1,33 @@
-import { createServer as createHttpServer, type Server } from 'node:http';
+import { createServer as createHttpServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 
-import { localhostHostValidation, localhostOriginValidation, toNodeHandler } from '@modelcontextprotocol/node';
-import { createMcpHandler, type McpServer } from '@modelcontextprotocol/server';
+import {
+  hostHeaderValidation,
+  localhostHostValidation,
+  localhostOriginValidation,
+  originValidation,
+  toNodeHandler,
+} from '@modelcontextprotocol/node';
+import {
+  type AuthInfo,
+  bearerAuthChallengeResponse,
+  createMcpHandler,
+  getOAuthProtectedResourceMetadataUrl,
+  type McpServer,
+  type OAuthTokenVerifier,
+  verifyBearerToken,
+} from '@modelcontextprotocol/server';
 
-import { publicStoreLabel, type AppConfig } from './config.js';
+import { createTokenVerifier, type VerifierOptions } from './auth.js';
+import { type AppConfig, SCOPES } from './config.js';
 import { installShutdown } from './shutdown.js';
 import { VERSION } from './version.js';
 
 export interface HttpServerOptions {
   signals?: boolean;
   quiet?: boolean;
+  /** Overrides how bearer tokens are checked. Mainly for tests. */
+  verifier?: OAuthTokenVerifier;
+  verifierOptions?: VerifierOptions;
 }
 
 export interface HttpServerHandle {
@@ -17,6 +35,9 @@ export interface HttpServerHandle {
   port: number;
   close: () => Promise<void>;
 }
+
+const LOOPBACK = new Set(['127.0.0.1', 'localhost', '::1']);
+const WELL_KNOWN = '/.well-known/oauth-protected-resource';
 
 export async function startHttpServer(
   factory: () => McpServer,
@@ -29,21 +50,83 @@ export async function startHttpServer(
       console.error('woocommerce-mcp failed to handle an HTTP request');
     },
   });
-  const validateHost = localhostHostValidation();
-  const validateOrigin = localhostOriginValidation();
-  const server = createHttpServer((request, response) => {
-    if (!validateHost(request, response) || !validateOrigin(request, response)) return;
+  const validateHost =
+    config.httpAllowedHosts.length > 0
+      ? hostHeaderValidation(config.httpAllowedHosts)
+      : LOOPBACK.has(config.httpHost)
+        ? localhostHostValidation()
+        : null;
+  const validateOrigin =
+    config.httpAllowedOrigins.length > 0 ? originValidation(config.httpAllowedOrigins) : localhostOriginValidation();
+
+  const auth = config.httpAuth;
+  const verifier = auth ? (options.verifier ?? createTokenVerifier(auth, options.verifierOptions)) : null;
+  const scopesSupported = [SCOPES.read, SCOPES.write, ...(auth?.requiredScopes ?? [])].filter(
+    (scope, index, all) => all.indexOf(scope) === index,
+  );
+
+  const resourceUrl = (request: IncomingMessage): URL => {
+    if (auth?.resource) return new URL(auth.resource);
+    const host = request.headers.host ?? `${config.httpHost}:${config.httpPort}`;
+    return new URL(`http://${host}${config.httpPath}`);
+  };
+
+  const handle = async (request: IncomingMessage, response: ServerResponse): Promise<void> => {
+    if (validateHost && !validateHost(request, response)) return;
+    if (!validateOrigin(request, response)) return;
     const pathname = requestPathname(request.url);
     if (pathname === null) {
       writeJson(response, 400, { error: 'Bad request' });
+      return;
+    }
+    if (pathname === '/healthz') {
+      writeJson(response, 200, { status: 'ok', version: VERSION });
+      return;
+    }
+    if (auth && isMetadataPath(pathname, config.httpPath)) {
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        response.writeHead(405, { allow: 'GET, HEAD' });
+        response.end();
+        return;
+      }
+      writeJson(response, 200, {
+        resource: resourceUrl(request).href,
+        ...(auth.issuer ? { authorization_servers: [auth.issuer] } : {}),
+        scopes_supported: scopesSupported,
+        bearer_methods_supported: ['header'],
+        resource_name: 'WooCommerce MCP server',
+      });
       return;
     }
     if (!isMcpPath(pathname, config.httpPath)) {
       writeJson(response, 404, { error: 'Not found' });
       return;
     }
-    void nodeHandler(request, response).catch(() => {
+    if (auth && verifier) {
+      const resourceMetadataUrl = getOAuthProtectedResourceMetadataUrl(resourceUrl(request));
+      try {
+        const info = await verifyBearerToken(request.headers.authorization, {
+          verifier,
+          requiredScopes: auth.requiredScopes,
+          resourceMetadataUrl,
+          ...(auth.resource ? { expectedResource: new URL(auth.resource) } : {}),
+        });
+        (request as IncomingMessage & { auth?: AuthInfo }).auth = info;
+      } catch (error) {
+        await sendWebResponse(
+          response,
+          bearerAuthChallengeResponse(error, { requiredScopes: auth.requiredScopes, resourceMetadataUrl }),
+        );
+        return;
+      }
+    }
+    await nodeHandler(request, response);
+  };
+
+  const server = createHttpServer((request, response) => {
+    handle(request, response).catch(() => {
       if (!response.headersSent) writeJson(response, 500, { error: 'Internal server error' });
+      else response.end();
     });
   });
 
@@ -67,28 +150,22 @@ export async function startHttpServer(
     throw new Error('HTTP server did not bind a TCP port');
   }
 
-  const url = `http://${config.httpHost}:${address.port}${config.httpPath}`;
+  const displayHost = config.httpHost.includes(':') ? `[${config.httpHost}]` : config.httpHost;
+  const url = `http://${displayHost}:${address.port}${config.httpPath}`;
   if (!options.quiet) {
-    const mode = config.readOnly ? 'read-only' : 'writes enabled';
+    const writable = config.stores.filter((store) => !store.readOnly).length;
+    const authMode = auth ? 'bearer auth' : 'no auth, loopback only';
     console.error(
-      `woocommerce-mcp ${VERSION} listening on ${url} (${mode}) for ${publicStoreLabel(config.url)}`,
+      `woocommerce-mcp ${VERSION} listening on ${url} (${authMode}; ${config.stores.length} store(s), ${writable} writable)`,
     );
   }
-  if (options.signals !== false) {
-    installShutdown(async () => {
-      await handler.close();
-      await closeServer(server);
-    });
-  }
-
-  return {
-    url,
-    port: address.port,
-    close: async () => {
-      await handler.close();
-      await closeServer(server);
-    },
+  const close = async (): Promise<void> => {
+    await handler.close();
+    await closeServer(server);
   };
+  if (options.signals !== false) installShutdown(close);
+
+  return { url, port: address.port, close };
 }
 
 export function requestPathname(rawUrl: string | undefined): string | null {
@@ -104,7 +181,20 @@ export function isMcpPath(pathname: string, configuredPath: string): boolean {
   return configuredPath !== '/' && pathname === `${configuredPath}/`;
 }
 
-function writeJson(response: { writeHead: (status: number, headers: Record<string, string>) => void; end: (body: string) => void }, status: number, body: unknown): void {
+export function isMetadataPath(pathname: string, configuredPath: string): boolean {
+  return pathname === WELL_KNOWN || pathname === `${WELL_KNOWN}${configuredPath === '/' ? '' : configuredPath}`;
+}
+
+async function sendWebResponse(response: ServerResponse, web: Response): Promise<void> {
+  const headers: Record<string, string> = {};
+  web.headers.forEach((value, key) => {
+    headers[key] = value;
+  });
+  response.writeHead(web.status, headers);
+  response.end(Buffer.from(await web.arrayBuffer()));
+}
+
+function writeJson(response: ServerResponse, status: number, body: unknown): void {
   response.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });
   response.end(JSON.stringify(body));
 }
