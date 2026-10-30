@@ -1,0 +1,35 @@
+name: Feature request
+description: Suggest an improvement to woocommerce-mcp
+title: "[Feature]: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What store task is hard or impossible with the current tools?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+      description: What should the server do, and which WooCommerce REST endpoint would it use?
+    validations:
+      required: true
+  - type: dropdown
+    id: access
+    attributes:
+      label: Access
+      description: Would this tool read the store, or change it?
+      options:
+        - Read
+        - Write
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Extra context
+    validations:
+      required: false
