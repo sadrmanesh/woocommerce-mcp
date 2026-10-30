@@ -29,7 +29,7 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     timeoutMs: 5_000,
     maxRetries: 2,
     defaultPerPage: 10,
-    userAgent: 'woocommerce-mcp/0.3.1',
+    userAgent: 'woocommerce-mcp/0.3.2',
     debug: false,
     requireConfirmation: true,
     auditLog: null,

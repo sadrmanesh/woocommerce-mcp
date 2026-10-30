@@ -9,7 +9,7 @@
 
 A [Model Context Protocol](https://modelcontextprotocol.io) server for running one or more WooCommerce stores through the WooCommerce REST API. MCP clients can browse the catalog, work through and fulfill orders, issue refunds, adjust prices and stock in bulk, run promotions, segment customers, react to webhooks, and read sales analytics. Every change is previewed before it is applied and can be written to an audit log.
 
-It runs locally over stdio, or as a remote service over streamable HTTP with bearer-token or OAuth 2.0 authentication, and ships with a Docker image definition.
+It runs locally over stdio, or as a remote service over streamable HTTP with bearer-token or OAuth 2.0 authentication, and ships as a Docker image on the GitHub Container Registry.
 
 **Documentation:** <https://sadrmanesh.github.io/woocommerce-mcp/>
 
@@ -52,6 +52,16 @@ Node.js 20 or newer is required.
 ```bash
 npm install -g @sadrmanesh/woocommerce-mcp
 ```
+
+Or run the Docker image from the GitHub Container Registry (`linux/amd64` and `linux/arm64`, tags `X.Y.Z`, `X.Y`, and `latest`):
+
+```bash
+docker run --rm -i -e MCP_TRANSPORT=stdio \
+  -e WOOCOMMERCE_URL -e WOOCOMMERCE_CONSUMER_KEY -e WOOCOMMERCE_CONSUMER_SECRET \
+  ghcr.io/sadrmanesh/woocommerce-mcp:0.3.2
+```
+
+The npm package is also on GitHub Packages; see [Install options](docs/install.md#github-packages) for the `.npmrc` setup. npmjs.com remains the main registry.
 
 Or from a checkout:
 

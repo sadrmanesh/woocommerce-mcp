@@ -32,6 +32,7 @@ Define tools with `defineTool` from `src/tools/registry.ts`. Mark write tools wi
 1. Update the version in `package.json` and `src/version.ts`, and move the `[Unreleased]` notes in `CHANGELOG.md` under the new version.
 2. Merge to `main`, then push a tag such as `v0.2.0`.
 3. The release workflow runs `npm run check`, confirms the tag matches the package version, and publishes to npm with the `NPM_TOKEN` repository secret. Without the secret it stops before publishing.
+4. After npm, it publishes `server.json` to the MCP Registry, the same package to GitHub Packages, and a multi-architecture Docker image to `ghcr.io/sadrmanesh/woocommerce-mcp` tagged `X.Y.Z`, `X.Y`, and `latest`. GitHub Packages and GHCR use the workflow's `GITHUB_TOKEN`.
 
 ## Reporting issues
 

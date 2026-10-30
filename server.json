@@ -3,7 +3,7 @@
   "name": "io.github.sadrmanesh/woocommerce-mcp",
   "title": "WooCommerce MCP",
   "description": "Manage WooCommerce stores: products, orders, customers, coupons, webhooks, and analytics.",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "websiteUrl": "https://sadrmanesh.github.io/woocommerce-mcp/",
   "repository": {
     "url": "https://github.com/sadrmanesh/woocommerce-mcp",
@@ -14,7 +14,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@sadrmanesh/woocommerce-mcp",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-30
+
+### Added
+
+- The release workflow publishes a Docker image to the GitHub Container Registry as `ghcr.io/sadrmanesh/woocommerce-mcp`, built for `linux/amd64` and `linux/arm64` and tagged `X.Y.Z`, `X.Y`, and `latest`. OCI labels and annotations link the image to this repository and carry its description and license.
+- The release workflow also publishes `@sadrmanesh/woocommerce-mcp` to GitHub Packages with the workflow's `GITHUB_TOKEN`. npmjs.com remains the main registry.
+- Install docs for the published image and for installing from GitHub Packages with an `.npmrc` scope entry, in the README, the install and deployment guides, and the Persian page.
+
+### Changed
+
+- The Docker examples use the published image instead of a local build.
+- `server.json`, the package version, and the Docker Compose image tag are now 0.3.2.
+
 ## [0.3.1] - 2026-10-30
 
 ### Added
@@ -84,7 +97,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configuration through environment variables, documented in `.env.example`.
 - Tests with mocked HTTP, ESLint, and a GitHub Actions workflow.
 
-[Unreleased]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.3.2...HEAD
+[0.3.2]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.1.0...v0.2.0

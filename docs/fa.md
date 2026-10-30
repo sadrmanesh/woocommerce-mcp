@@ -40,6 +40,8 @@ npx -y @sadrmanesh/woocommerce-mcp
 
 برای نصب سراسری از `npm install -g @sadrmanesh/woocommerce-mcp` استفاده کنید. نام فرمان بعد از نصب `woocommerce-mcp` است.
 
+ایمیج داکر هر نسخه هم برای `linux/amd64` و `linux/arm64` در GitHub Container Registry منتشر می شود: `docker pull ghcr.io/sadrmanesh/woocommerce-mcp:0.3.2`. برچسب های `X.Y.Z`، `X.Y` و `latest` در دسترس هستند. بسته npm در GitHub Packages هم منتشر می شود و راه نصب آن در [روش های نصب](install.md#github-packages) آمده است، اما مخزن اصلی همچنان npmjs.com است.
+
 کلید REST API را از مسیر WooCommerce > Settings > Advanced > REST API بسازید. تا وقتی فروشگاه فقط خواندنی است کلید Read کافی است.
 
 ## راهنماها
