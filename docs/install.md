@@ -9,6 +9,7 @@ woocommerce-mcp works with any MCP host that can start a stdio server or connect
 | [GitHub Packages](#github-packages) | Teams that already install npm packages from GitHub |
 | [Smithery](#smithery) | Hosts that install servers from the Smithery catalog |
 | [MCP Registry](#mcp-registry) | Hosts and catalogs that read the official MCP Registry |
+| [Directories](#directories) | Browsing the listing on Glama or mcpservers.org |
 | [HTTP](#remote-http) | One shared server for several users or hosts |
 
 Every option needs a WooCommerce REST API key; see [Getting started](getting-started.md#quick-start). Start with a Read key and the default read-only mode.
@@ -111,6 +112,16 @@ The server always runs over stdio there.
 The server is listed on the official [MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.sadrmanesh/woocommerce-mcp). `server.json` describes it under the name `io.github.sadrmanesh/woocommerce-mcp`. It points to the `@sadrmanesh/woocommerce-mcp` npm package, started with `npx` over stdio, and lists the environment variables a host should ask for. The `mcpName` field in `package.json` proves the npm package belongs to that name.
 
 Hosts that read the registry can install the server from it. To publish a new version, a maintainer updates the version in `server.json` (a test checks that it matches `package.json`) and pushes a version tag. The release workflow publishes the package to npm, then signs in to the registry with GitHub OIDC and runs `mcp-publisher publish`, so no registry token is stored in the repository.
+
+## Directories
+
+The server is also listed on two MCP directories, which show its tools, README, and install instructions:
+
+- [Glama](https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp), with a quality score and a card for the server
+- [mcpservers.org](https://mcpservers.org/servers/sadrmanesh/woocommerce-mcp)
+
+[![Glama MCP server score](https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp/badges/score.svg)](https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp)
+[![Listed on mcpservers.org](https://mcpservers.org/badge.svg)](https://mcpservers.org/servers/sadrmanesh/woocommerce-mcp)
 
 ## Remote HTTP
 

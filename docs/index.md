@@ -14,6 +14,11 @@ It runs locally over stdio, or as a remote service over streamable HTTP with bea
 [Tool explorer](https://huggingface.co/spaces/sadrmanesh/woocommerce-mcp-explorer){ .md-button }
 [GitHub](https://github.com/sadrmanesh/woocommerce-mcp){ .md-button }
 
+Listed on the official [MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.sadrmanesh/woocommerce-mcp), [Glama](https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp), and [mcpservers.org](https://mcpservers.org/servers/sadrmanesh/woocommerce-mcp).
+
+[![Glama MCP server score](https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp/badges/score.svg)](https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp)
+[![Listed on mcpservers.org](https://mcpservers.org/badge.svg)](https://mcpservers.org/servers/sadrmanesh/woocommerce-mcp)
+
 ```bash
 WOOCOMMERCE_URL=https://store.example.com \
 WOOCOMMERCE_CONSUMER_KEY=ck_... \
