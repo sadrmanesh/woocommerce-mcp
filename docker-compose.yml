@@ -8,7 +8,7 @@ services:
       context: .
       args:
         OTEL: "false"
-    image: woocommerce-mcp:0.4.0
+    image: woocommerce-mcp:0.5.0
     restart: unless-stopped
     env_file: .env
     environment:

@@ -34,6 +34,20 @@ interface SharedState {
   cache: ResponseCache<ApiResponse<unknown>>;
 }
 
+/** One read made by a planning client, reported so a preview can fingerprint the state it used. */
+export interface RecordedRead {
+  path: string;
+  query: Record<string, string>;
+  data: unknown;
+}
+
+export interface PlanningOptions {
+  /** Skip cached responses so the plan is computed from the store's current values. Responses still refresh the cache. */
+  fresh?: boolean;
+  /** Called with every successful read the planning client makes. */
+  onRead?: (read: RecordedRead) => void;
+}
+
 export interface ClientStats {
   cache: ReturnType<ResponseCache<unknown>['stats']>;
   rateLimit: { requestsPerSecond: number; burst: number };
@@ -48,6 +62,7 @@ export class WooCommerceClient {
     private readonly planWrites = false,
     shared?: SharedState,
     private readonly namespace: string = options.apiVersion,
+    private readonly planOptions: PlanningOptions = {},
   ) {
     const now = hooks.now ?? Date.now;
     this.shared = shared ?? {
@@ -60,8 +75,8 @@ export class WooCommerceClient {
    * Returns a client that performs reads normally but stops at the first write
    * and throws a {@link PlannedWrite} describing the request it would send.
    */
-  planning(): WooCommerceClient {
-    return new WooCommerceClient(this.options, this.hooks, true, this.shared, this.namespace);
+  planning(options: PlanningOptions = {}): WooCommerceClient {
+    return new WooCommerceClient(this.options, this.hooks, true, this.shared, this.namespace, options);
   }
 
   /** Returns a client for another REST namespace on the same store, such as an extension's API. */
@@ -69,7 +84,7 @@ export class WooCommerceClient {
     if (!/^[a-z0-9-]+\/v\d+$/.test(namespace)) {
       throw new WooCommerceApiError('Refused to use an unsafe REST namespace.', { code: 'invalid_path', status: 0 });
     }
-    return new WooCommerceClient(this.options, this.hooks, this.planWrites, this.shared, namespace);
+    return new WooCommerceClient(this.options, this.hooks, this.planWrites, this.shared, namespace, this.planOptions);
   }
 
   /** Drops every cached response for this store. */
@@ -116,9 +131,9 @@ export class WooCommerceClient {
       });
     }
     const cacheKey = method === 'GET' ? `${this.namespace}/${safePath}?${JSON.stringify(normalizeQuery(query))}` : null;
-    if (cacheKey !== null) {
+    if (cacheKey !== null && this.planOptions.fresh !== true) {
       const cached = this.shared.cache.get(cacheKey);
-      if (cached) return structuredClone(cached) as ApiResponse<T>;
+      if (cached) return this.recordRead(safePath, query, structuredClone(cached) as ApiResponse<T>);
     }
     // Any write can change what reads return, so start fresh, even when the write fails.
     if (cacheKey === null) this.shared.cache.clear();
@@ -139,6 +154,18 @@ export class WooCommerceClient {
       this.shared.cache.set(cacheKey, structuredClone(response) as ApiResponse<unknown>);
     } else {
       this.shared.cache.clear();
+    }
+    return method === 'GET' ? this.recordRead(safePath, query, response) : response;
+  }
+
+  private recordRead<T>(safePath: string, query: QueryParams | undefined, response: ApiResponse<T>): ApiResponse<T> {
+    const onRead = this.planOptions.onRead;
+    if (onRead) {
+      onRead({
+        path: this.namespace === this.options.apiVersion ? safePath : `${this.namespace}/${safePath}`,
+        query: normalizeQuery(query),
+        data: structuredClone(response.data),
+      });
     }
     return response;
   }

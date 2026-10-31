@@ -108,3 +108,23 @@ export class PreviewMismatchError extends Error {
     this.name = 'PreviewMismatchError';
   }
 }
+
+/** Details of a stale_preview refusal: the state the preview saw and what the store holds now. */
+export interface StaleDetails {
+  previewStateId: string;
+  currentStateId: string | null;
+  current: unknown;
+}
+
+export class StalePreviewError extends Error {
+  readonly code = 'stale_preview' as const;
+  readonly details: StaleDetails;
+
+  constructor(toolName: string, storeId: string, details: StaleDetails) {
+    super(
+      `Refused to run ${toolName}: the store data this change was computed from has changed since the preview for store "${storeId}". Nothing was sent to the store. Call the tool again without confirm to get a fresh preview, review it with the user, then confirm with the new previewId.`,
+    );
+    this.name = 'StalePreviewError';
+    this.details = details;
+  }
+}

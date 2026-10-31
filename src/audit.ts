@@ -16,6 +16,13 @@ export interface AuditEntry {
   previewId?: string;
   /** Present when the call supplied a previewId: whether it matched the arguments. */
   previewMatch?: boolean;
+  /**
+   * Present when a confirm sent a previewId with a state part: whether the
+   * store data the write is computed from still matched the preview.
+   */
+  stateMatch?: boolean;
+  /** Set on a stale_preview refusal: the state id of the preview and of the store now. */
+  stale?: { previewStateId: string; currentStateId: string | null };
   error?: { code: string; message: string };
   client?: string;
 }

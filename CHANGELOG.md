@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-31
+
+### Added
+
+- Stale preview detection. When a write tool reads store data to plan its write, such as `woocommerce_bulk_adjust_prices`, `woocommerce_schedule_sale`, `woocommerce_end_sale`, or `woocommerce_fulfill_order`, the preview fingerprints what it read and the `previewId` gets a second part, the state id: `pv_<arguments>_<state>`. A confirm that sends this id plans the write again on fresh reads and is refused with the new error code `stale_preview`, before anything is written, if the state no longer matches. The error details carry both state ids and the current values.
+- A `preconditions` block in `confirmation_required`, `dry_run`, and `no_change` responses of those tools. It lists every record the plan read with its `dateModified`, the current values of the fields the write sets (`before`), and the absolute values it will set (`after`), so a relative change such as +10% shows 20.00 to 22.00.
+- Audit entries record `stateMatch` when the supplied `previewId` had a state part, and a `stale_preview` refusal is logged as `refused` with a `stale` object holding the preview and current state ids.
+- The Stale previews section of the safe writes guide, including what the check does and does not guarantee.
+
+### Changed
+
+- Previews read fresh data from the store instead of the read cache, and the response from that read refreshes the cache.
+- Tool descriptions, the `previewId` input description, and the server instructions mention `stale_preview` and ask clients to request a fresh preview when they get it.
+- `preview_mismatch` is checked before any state is read, so a call with changed arguments reports `preview_mismatch`, never `stale_preview`.
+- A confirm without `previewId`, or with a one-part id, works as in 0.4.0 and is not checked for staleness. Tools that write without reading keep the one-part id.
+- `server.json`, the package version, and the Docker Compose image tag are now 0.5.0.
+
 ## [0.4.0] - 2026-10-31
 
 ### Added
@@ -113,7 +130,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configuration through environment variables, documented in `.env.example`.
 - Tests with mocked HTTP, ESLint, and a GitHub Actions workflow.
 
-[Unreleased]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.3.0...v0.3.1

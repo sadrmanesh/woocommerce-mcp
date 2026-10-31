@@ -34,20 +34,20 @@ Add this to your host's MCP server settings. Most hosts use an `mcpServers` map 
 }
 ```
 
-Pin a version with `"@sadrmanesh/woocommerce-mcp@0.4.0"` to control upgrades. Add any variable from [Configuration](configuration.md) to `env`, for example `"WOOCOMMERCE_REDACT_PII": "true"`.
+Pin a version with `"@sadrmanesh/woocommerce-mcp@0.5.0"` to control upgrades. Add any variable from [Configuration](configuration.md) to `env`, for example `"WOOCOMMERCE_REDACT_PII": "true"`.
 
 ## Docker
 
 Every release publishes a multi-architecture image (`linux/amd64`, `linux/arm64`) to the GitHub Container Registry:
 
 ```bash
-docker pull ghcr.io/sadrmanesh/woocommerce-mcp:0.4.0
+docker pull ghcr.io/sadrmanesh/woocommerce-mcp:0.5.0
 ```
 
 The same image, with the same tags, is on Docker Hub:
 
 ```bash
-docker pull sadrmanesh/woocommerce-mcp:0.4.0
+docker pull sadrmanesh/woocommerce-mcp:0.5.0
 ```
 
 Tags are `X.Y.Z` for an exact release, `X.Y` for the newest patch of a minor version, and `latest`. The image runs as the unprivileged `node` user and carries OCI labels that link it to this repository.
@@ -63,7 +63,7 @@ Tags are `X.Y.Z` for an exact release, `X.Y` for the newest patch of a minor ver
         "-e", "WOOCOMMERCE_URL",
         "-e", "WOOCOMMERCE_CONSUMER_KEY",
         "-e", "WOOCOMMERCE_CONSUMER_SECRET",
-        "ghcr.io/sadrmanesh/woocommerce-mcp:0.4.0"
+        "ghcr.io/sadrmanesh/woocommerce-mcp:0.5.0"
       ],
       "env": {
         "WOOCOMMERCE_URL": "https://store.example.com",
