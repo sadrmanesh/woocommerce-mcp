@@ -97,3 +97,14 @@ export class ToolDisabledError extends Error {
     this.name = 'ToolDisabledError';
   }
 }
+
+export class PreviewMismatchError extends Error {
+  readonly code = 'preview_mismatch' as const;
+
+  constructor(toolName: string, storeId: string, previewId: string) {
+    super(
+      `Refused to run ${toolName}: previewId "${previewId}" does not match these arguments for store "${storeId}". Nothing was sent to the store. Repeat the exact previewed arguments, or call the tool without confirm to get a new preview.`,
+    );
+    this.name = 'PreviewMismatchError';
+  }
+}

@@ -138,6 +138,7 @@ Each write tool also accepts:
 
 - `dryRun: true`: always return a preview and send nothing
 - `confirm: true`: apply the change
+- `previewId`: the id from the preview being confirmed. The call is refused with `preview_mismatch` if the arguments differ from that preview
 
 When confirmation is required (the default), a call without `confirm: true` returns:
 
@@ -145,7 +146,8 @@ When confirmation is required (the default), a call without `confirm: true` retu
 {
   "status": "confirmation_required",
   "store": "default",
-  "message": "The change was NOT applied. Review the request below with the user, then call this tool again with the same arguments and confirm: true.",
+  "previewId": "pv_4f1c9a2e7b3d0856",
+  "message": "The change was NOT applied. Review the request below with the user, then call this tool again with the same arguments, confirm: true, and this previewId.",
   "request": {
     "method": "PUT",
     "path": "/products/42",
@@ -155,7 +157,7 @@ When confirmation is required (the default), a call without `confirm: true` retu
 }
 ```
 
-A dry run returns `"status": "dry_run"` with the same `request`. If the tool would not write anything, the status is `no_change`. Previews may read from the store, for example to compute new prices, but never write. Because the confirmed call runs again, a bulk price change is computed from the prices at that moment.
+A dry run returns `"status": "dry_run"` with the same `request` and `previewId`. Pass `previewId` with `confirm: true` to have the server check that the confirmed arguments are the ones that were previewed; see [Preview ids](safe-writes.md#preview-ids). If the tool would not write anything, the status is `no_change`. Previews may read from the store, for example to compute new prices, but never write. Because the confirmed call runs again, a bulk price change is computed from the prices at that moment.
 
 A write to a read-only store fails with `read_only`. Over authenticated HTTP, a token without the `woocommerce:write` scope fails with `insufficient_scope`.
 

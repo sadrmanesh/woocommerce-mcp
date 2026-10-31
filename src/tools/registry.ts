@@ -5,8 +5,15 @@ import type { AuditEntry, AuditOutcome } from '../audit.js';
 import { SCOPES, toolAllowed } from '../config.js';
 import { redactPersonalData } from '../redact.js';
 import { withSpan } from '../telemetry.js';
-import { ForbiddenError, PlannedWrite, ReadOnlyModeError, ToolDisabledError } from '../woocommerce/errors.js';
+import {
+  ForbiddenError,
+  PlannedWrite,
+  PreviewMismatchError,
+  ReadOnlyModeError,
+  ToolDisabledError,
+} from '../woocommerce/errors.js';
 import { resolveStore, type Runtime, type ToolContext } from './context.js';
+import { previewIdFor } from './preview-id.js';
 import { jsonResult as plainJsonResult, serializeError, type ToolResult } from './result.js';
 
 export const READ: ToolAnnotations = {
@@ -38,7 +45,7 @@ export const DESTRUCTIVE: ToolAnnotations = {
 };
 
 export const WRITE_NOTE =
-  'Write tool: refused while the store is read-only. Pass dryRun: true to preview the request. When confirmation is required (the default), call once to get a preview, then again with confirm: true to apply it.';
+  'Write tool: refused while the store is read-only. Pass dryRun: true to preview the request. When confirmation is required (the default), call once to get a preview, then again with confirm: true and the returned previewId to apply it.';
 
 const storeField = z
   .string()
@@ -51,6 +58,13 @@ const storeField = z
 const writeFields = {
   dryRun: z.boolean().optional().describe('Preview the WooCommerce request without sending it'),
   confirm: z.boolean().optional().describe('Apply the change. Required when the server asks for confirmation'),
+  previewId: z
+    .string()
+    .trim()
+    .min(1)
+    .max(64)
+    .optional()
+    .describe('previewId from the preview of this change. The call is refused if the arguments differ from the preview'),
 };
 
 type AnyObject = z.ZodObject<z.ZodRawShape>;
@@ -69,6 +83,7 @@ interface CallMeta {
   store?: string;
   dryRun?: boolean;
   confirm?: boolean;
+  previewId?: string;
 }
 
 export function defineTool<S extends AnyObject>(server: McpServer, runtime: Runtime, spec: ToolSpec<S>): void {
@@ -97,13 +112,15 @@ export async function runTool<S extends AnyObject>(
   input: z.infer<S> & CallMeta,
   authInfo?: AuthInfo,
 ): Promise<ToolResult> {
-  const { store: storeId, dryRun, confirm, ...rest } = input;
+  const { store: storeId, dryRun, confirm, previewId: suppliedPreviewId, ...rest } = input;
   const args = rest as z.infer<S>;
   return withSpan(
     `tool ${spec.name}`,
     { 'mcp.tool.name': spec.name, 'woocommerce.store': storeId ?? runtime.defaultStore, 'mcp.tool.write': spec.write },
     async (span) => {
       let storeLabel = storeId ?? runtime.defaultStore;
+      // Set once the store is known: links this call to its preview in the audit log.
+      let link: Pick<AuditEntry, 'previewId' | 'previewMatch'> = {};
       const audit = async (outcome: AuditOutcome, extra: Partial<AuditEntry> = {}): Promise<void> => {
         if (!spec.write) return;
         span.setAttribute('woocommerce.write.outcome', outcome);
@@ -114,6 +131,7 @@ export async function runTool<S extends AnyObject>(
           outcome,
           arguments: args as Record<string, unknown>,
           ...(authInfo ? { client: authInfo.clientId } : {}),
+          ...link,
           ...extra,
         });
       };
@@ -138,10 +156,18 @@ export async function runTool<S extends AnyObject>(
         if (runtime.scopesEnforced && authInfo && !authInfo.scopes.includes(SCOPES.write)) {
           throw new ForbiddenError(`Refused to run ${spec.name}: the access token lacks the ${SCOPES.write} scope.`);
         }
+        const previewId = previewIdFor(spec.name, handle.config.id, args as Record<string, unknown>);
+        const preview = dryRun === true || (runtime.requireConfirmation && confirm !== true);
+        link =
+          !preview && suppliedPreviewId !== undefined
+            ? { previewId: suppliedPreviewId, previewMatch: suppliedPreviewId === previewId }
+            : { previewId };
         if (handle.config.readOnly) throw new ReadOnlyModeError(spec.name, handle.config.id);
 
-        const preview = dryRun === true || (runtime.requireConfirmation && confirm !== true);
         if (!preview) {
+          if (link.previewMatch === false) {
+            throw new PreviewMismatchError(spec.name, handle.config.id, suppliedPreviewId ?? '');
+          }
           const result = await spec.run(ctx, args);
           await audit('applied');
           return jsonResult(result);
@@ -151,7 +177,7 @@ export async function runTool<S extends AnyObject>(
           const result = await spec.run({ ...ctx, client: handle.client.planning() }, args);
           // The tool finished without needing a write, for example an empty change set.
           await audit(dryRun === true ? 'dry_run' : 'confirmation_required');
-          return jsonResult({ status: 'no_change', store: handle.config.id, result });
+          return jsonResult({ status: 'no_change', store: handle.config.id, previewId, result });
         } catch (error) {
           if (!(error instanceof PlannedWrite)) throw error;
           // Previews echo the caller's own arguments, so they are not masked.
@@ -162,6 +188,7 @@ export async function runTool<S extends AnyObject>(
             return plainJsonResult({
               status: 'dry_run',
               store: handle.config.id,
+              previewId,
               message: 'Nothing was sent to the store. This is the request the tool would make.',
               request: planned,
             });
@@ -170,15 +197,19 @@ export async function runTool<S extends AnyObject>(
           return plainJsonResult({
             status: 'confirmation_required',
             store: handle.config.id,
+            previewId,
             message:
-              'The change was NOT applied. Review the request below with the user, then call this tool again with the same arguments and confirm: true.',
+              'The change was NOT applied. Review the request below with the user, then call this tool again with the same arguments, confirm: true, and this previewId.',
             request: planned,
           });
         }
       } catch (error) {
         const payload = serializeError(error);
         const refused =
-          error instanceof ReadOnlyModeError || error instanceof ForbiddenError || error instanceof ToolDisabledError;
+          error instanceof ReadOnlyModeError ||
+          error instanceof ForbiddenError ||
+          error instanceof ToolDisabledError ||
+          error instanceof PreviewMismatchError;
         await audit(refused ? 'refused' : 'failed', {
           error: { code: payload.error.code, message: payload.error.message },
         });

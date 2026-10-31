@@ -7,6 +7,7 @@ import { describe, it } from 'node:test';
 import { createAuditLog, memoryAuditLog } from '../src/audit.js';
 import { SCOPES } from '../src/config.js';
 import { createProduct } from '../src/tools/products.js';
+import { canonicalJson, previewIdFor } from '../src/tools/preview-id.js';
 import { CREATE, READ, runTool, type ToolSpec } from '../src/tools/registry.js';
 import { createProductInput, getProductInput } from '../src/tools/schemas.js';
 import { getProduct } from '../src/tools/products.js';
@@ -102,6 +103,93 @@ describe('write guard', () => {
     assert.equal(failed.isError, true);
     assert.equal(audit.entries.at(-1)?.outcome, 'failed');
     assert.match(audit.entries.at(-1)?.error?.message ?? '', /cannot create/);
+  });
+});
+
+describe('preview ids', () => {
+  it('fingerprints tool, store, and arguments regardless of key order', () => {
+    assert.equal(canonicalJson({ b: 1, a: [{ d: 2, c: undefined }], e: null }), '{"a":[{"d":2}],"b":1,"e":null}');
+    const id = previewIdFor('woocommerce_create_product', 'default', { name: 'Hat', regularPrice: '9' });
+    assert.match(id, /^pv_[0-9a-f]{16}$/);
+    assert.equal(previewIdFor('woocommerce_create_product', 'default', { regularPrice: '9', name: 'Hat' }), id);
+    assert.notEqual(previewIdFor('woocommerce_create_product', 'other', { name: 'Hat', regularPrice: '9' }), id);
+    assert.notEqual(previewIdFor('woocommerce_update_product', 'default', { name: 'Hat', regularPrice: '9' }), id);
+    assert.notEqual(previewIdFor('woocommerce_create_product', 'default', { name: 'Hat', regularPrice: '10' }), id);
+  });
+
+  it('links a confirmed write to its preview in the response and the audit log', async () => {
+    const { fetchImpl, requests } = createFetchMock(async () => jsonResponse({ id: 9 }));
+    const audit = memoryAuditLog();
+    const runtime = testRuntime(fetchImpl, writable, { audit });
+
+    const preview = parse(await runTool(runtime, createSpec, { name: 'Hat' }));
+    assert.equal(preview.status, 'confirmation_required');
+    assert.match(String(preview.previewId), /^pv_[0-9a-f]{16}$/);
+    const dryRun = parse(await runTool(runtime, createSpec, { name: 'Hat', dryRun: true }));
+    assert.equal(dryRun.previewId, preview.previewId);
+
+    const applied = await runTool(runtime, createSpec, { name: 'Hat', confirm: true, previewId: String(preview.previewId) });
+    assert.notEqual(applied.isError, true);
+    assert.equal(requests.length, 1);
+    assert.deepEqual(
+      audit.entries.map((entry) => [entry.outcome, entry.previewId, entry.previewMatch]),
+      [
+        ['confirmation_required', preview.previewId, undefined],
+        ['dry_run', preview.previewId, undefined],
+        ['applied', preview.previewId, true],
+      ],
+    );
+  });
+
+  it('refuses a confirm whose arguments differ from the preview', async () => {
+    const { fetchImpl, requests } = createFetchMock(async () => jsonResponse({ id: 9 }));
+    const audit = memoryAuditLog();
+    const runtime = testRuntime(fetchImpl, writable, { audit });
+    const preview = parse(await runTool(runtime, createSpec, { name: 'Hat' }));
+
+    const refused = await runTool(runtime, createSpec, { name: 'Cap', confirm: true, previewId: String(preview.previewId) });
+    assert.equal(refused.isError, true);
+    assert.match(resultText(refused), /preview_mismatch/);
+    assert.match(resultText(refused), /does not match these arguments/);
+    assert.equal(requests.length, 0);
+    const last = audit.entries.at(-1);
+    assert.equal(last?.outcome, 'refused');
+    assert.equal(last?.previewId, preview.previewId);
+    assert.equal(last?.previewMatch, false);
+    assert.equal(last?.error?.code, 'preview_mismatch');
+
+    const twoStores = testRuntime(
+      fetchImpl,
+      { stores: [testStore({ readOnly: false }), testStore({ id: 'eu', readOnly: false })] },
+      { audit },
+    );
+    const wrongStore = await runTool(twoStores, createSpec, {
+      name: 'Hat',
+      store: 'eu',
+      confirm: true,
+      previewId: String(preview.previewId),
+    });
+    assert.match(resultText(wrongStore), /preview_mismatch/);
+    assert.equal(requests.length, 0);
+  });
+
+  it('still applies a confirm without previewId and records the fingerprint', async () => {
+    const { fetchImpl, requests } = createFetchMock(async () =>
+      jsonResponse({ code: 'woocommerce_rest_cannot_create', message: 'Sorry, you cannot create resources.' }, { status: 401 }),
+    );
+    const audit = memoryAuditLog();
+    const runtime = testRuntime(fetchImpl, writable, { audit });
+    const expected = previewIdFor('woocommerce_create_product', 'default', { name: 'Hat' });
+
+    await runTool(runtime, createSpec, { name: 'Hat', confirm: true });
+    assert.equal(requests.length, 1);
+    assert.equal(audit.entries[0]?.outcome, 'failed');
+    assert.equal(audit.entries[0]?.previewId, expected);
+    assert.equal(audit.entries[0]?.previewMatch, undefined);
+
+    await runTool(runtime, createSpec, { name: 'Hat', confirm: true, previewId: expected });
+    assert.equal(audit.entries[1]?.outcome, 'failed');
+    assert.equal(audit.entries[1]?.previewMatch, true);
   });
 });
 

@@ -3,6 +3,7 @@ import type { CallToolResult } from '@modelcontextprotocol/server';
 import {
   ForbiddenError,
   InputError,
+  PreviewMismatchError,
   ReadOnlyModeError,
   ToolDisabledError,
   UnknownStoreError,
@@ -51,6 +52,7 @@ export function serializeError(error: unknown): ErrorPayload {
     error instanceof ReadOnlyModeError ||
     error instanceof InputError ||
     error instanceof ForbiddenError ||
+    error instanceof PreviewMismatchError ||
     error instanceof UnknownStoreError ||
     error instanceof ToolDisabledError
   ) {

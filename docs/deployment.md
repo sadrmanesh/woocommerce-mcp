@@ -25,10 +25,10 @@ Released images are on the GitHub Container Registry for `linux/amd64` and `linu
 ```bash
 docker run -d --name woocommerce-mcp -p 127.0.0.1:3000:3000 \
   --env-file .env \
-  ghcr.io/sadrmanesh/woocommerce-mcp:0.3.2
+  ghcr.io/sadrmanesh/woocommerce-mcp:0.4.0
 ```
 
-Use `0.3.2` to pin a release, `0.3` to follow patch releases, or `latest`. To run the published image with Docker Compose, remove the `build:` block and set `image: ghcr.io/sadrmanesh/woocommerce-mcp:0.3.2`.
+Use `0.4.0` to pin a release, `0.4` to follow patch releases, or `latest`. To run the published image with Docker Compose, remove the `build:` block and set `image: ghcr.io/sadrmanesh/woocommerce-mcp:0.4.0`.
 
 Or build it yourself from a checkout:
 
@@ -46,7 +46,7 @@ Run it over stdio instead, for a host that launches containers:
   "mcpServers": {
     "woocommerce": {
       "command": "docker",
-      "args": ["run", "-i", "--rm", "-e", "MCP_TRANSPORT=stdio", "-e", "WOOCOMMERCE_URL", "-e", "WOOCOMMERCE_CONSUMER_KEY", "-e", "WOOCOMMERCE_CONSUMER_SECRET", "ghcr.io/sadrmanesh/woocommerce-mcp:0.3.2"],
+      "args": ["run", "-i", "--rm", "-e", "MCP_TRANSPORT=stdio", "-e", "WOOCOMMERCE_URL", "-e", "WOOCOMMERCE_CONSUMER_KEY", "-e", "WOOCOMMERCE_CONSUMER_SECRET", "ghcr.io/sadrmanesh/woocommerce-mcp:0.4.0"],
       "env": {
         "WOOCOMMERCE_URL": "https://store.example.com",
         "WOOCOMMERCE_CONSUMER_KEY": "ck_...",

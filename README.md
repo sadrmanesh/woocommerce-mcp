@@ -35,7 +35,7 @@ Listed on the [official MCP Registry](https://registry.modelcontextprotocol.io/v
 
 - **Multi-store.** Configure any number of stores and pick one per call with `store`. Each store has its own credentials and its own read-only switch.
 - **Safe by default.** Stores are read-only until you allow writes. Write tools then return a preview of the exact REST request and apply it only when called again with `confirm: true`. `dryRun: true` always previews.
-- **Audit log.** One JSON line per write attempt: applied, previewed, refused, or failed, with the tool, store, arguments, and caller.
+- **Audit log.** One JSON line per write attempt: applied, previewed, refused, or failed, with the tool, store, arguments, caller, and a preview id that links each confirmed write to its preview.
 - **Refunds and bulk operations.** Partial or line-item refunds, batch updates of up to 100 products, and percentage or fixed price adjustments.
 - **Analytics.** Sales by day, week, or month with refunds, average order value, top products, and payment methods, plus a low-stock report that covers variations.
 - **Promotions and customers.** Coupon performance, scheduled sales, and customer segments such as VIP, repeat, and at risk.
@@ -62,7 +62,7 @@ Or run the Docker image from the GitHub Container Registry (`linux/amd64` and `l
 ```bash
 docker run --rm -i -e MCP_TRANSPORT=stdio \
   -e WOOCOMMERCE_URL -e WOOCOMMERCE_CONSUMER_KEY -e WOOCOMMERCE_CONSUMER_SECRET \
-  ghcr.io/sadrmanesh/woocommerce-mcp:0.3.2
+  ghcr.io/sadrmanesh/woocommerce-mcp:0.4.0
 ```
 
 The npm package is also on GitHub Packages; see [Install options](docs/install.md#github-packages) for the `.npmrc` setup. npmjs.com remains the main registry.
@@ -177,17 +177,18 @@ Full argument and response details are in [docs/tools.md](docs/tools.md).
    {
      "status": "confirmation_required",
      "store": "default",
+     "previewId": "pv_4f1c9a2e7b3d0856",
      "message": "The change was NOT applied. ...",
      "request": { "method": "PUT", "path": "orders/1015", "query": {}, "body": { "status": "completed" } }
    }
    ```
 
-   Calling the tool again with the same arguments and `confirm: true` applies it. `dryRun: true` always previews, even with confirmation turned off.
+   Calling the tool again with the same arguments and `confirm: true` applies it. `dryRun: true` always previews, even with confirmation turned off. Every preview carries a `previewId`; send it back with `confirm: true` and the server refuses the call if the arguments changed since the preview.
 3. **Scopes.** Over authenticated HTTP, write tools also need the `woocommerce:write` scope. Read-only tokens can never change a store.
 4. **Audit.** Set `WOOCOMMERCE_AUDIT_LOG` to a file path or `stderr`:
 
    ```json
-   {"time":"2026-10-30T14:02:11.120Z","tool":"woocommerce_update_order_status","store":"default","outcome":"applied","arguments":{"id":1015,"status":"completed"},"client":"static:3f9a1c2b7d10"}
+   {"time":"2026-10-30T14:02:11.120Z","tool":"woocommerce_update_order_status","store":"default","outcome":"applied","arguments":{"id":1015,"status":"completed"},"client":"static:3f9a1c2b7d10","previewId":"pv_4f1c9a2e7b3d0856","previewMatch":true}
    ```
 
 Refunds created by `woocommerce_create_refund` are recorded as manual refunds unless `apiRefund: true` asks the payment gateway to return the money.
