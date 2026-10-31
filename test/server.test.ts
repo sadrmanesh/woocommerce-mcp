@@ -19,7 +19,7 @@ describe('MCP server', () => {
   it('matches the package version', () => {
     const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as { version: string };
     assert.equal(pkg.version, VERSION);
-    assert.equal(VERSION, '0.5.0');
+    assert.equal(VERSION, '0.6.0');
     assert.equal(TOOL_NAMES.length, 47);
     assert.equal(new Set(TOOL_NAMES).size, TOOL_NAMES.length);
   });

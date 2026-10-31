@@ -8,14 +8,19 @@ Over `https://` the client uses HTTP Basic auth. Over plain `http://` it signs r
 
 ## Write controls
 
-Writes pass four checks, in order:
+Writes pass these checks, in order:
 
 1. The token has the `woocommerce:write` scope (HTTP with authentication only).
 2. The target store is not read-only.
 3. The call has `confirm: true`, unless confirmation is turned off. `dryRun: true` always stops here with a preview.
-4. The WooCommerce key has write permission.
+4. With `WOOCOMMERCE_APPROVAL_SECRET` set, the call carries a valid, unexpired, unused `approval` token signed for its exact `previewId`, tool, and store. See [Signed approvals](safe-writes.md#signed-approvals).
+5. The WooCommerce key has write permission.
 
 Each write attempt is recorded in the audit log when `WOOCOMMERCE_AUDIT_LOG` is set, including refused and failed attempts. Entries contain the tool arguments, which can include customer notes or prices, so store the file with the same care as the store data.
+
+## Approval secret
+
+`WOOCOMMERCE_APPROVAL_SECRET` is only useful while the agent cannot read it. Keep it out of MCP client config files and prompts, run the server as a separate service when you can, and run `woocommerce-mcp approve` from a host or account the agent has no shell on. The server never prints it, and audit entries hold only the token id, never the token or the secret.
 
 ## Limit the tools
 

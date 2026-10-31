@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 
 import * as z from 'zod/v4';
 
+import { DEFAULT_APPROVAL_TTL_SECONDS, MIN_APPROVAL_SECRET_LENGTH } from './approval.js';
 import { matchesToolPattern, TOOL_NAMES } from './tools/names.js';
 import { VERSION } from './version.js';
 import { AUTH_MODES, type AuthMode } from './woocommerce/auth.js';
@@ -103,6 +104,13 @@ export interface AppConfig {
   userAgent: string;
   debug: boolean;
   requireConfirmation: boolean;
+  /**
+   * Secret that approval tokens are signed with. When set, every confirmed
+   * write needs a signed approval token. Null keeps the 0.5 behavior.
+   */
+  approvalSecret: string | null;
+  /** Longest lifetime of an approval token the server accepts, in seconds. */
+  approvalTtlSeconds: number;
   auditLog: string | null;
   telemetry: boolean;
   transport: TransportMode;
@@ -174,6 +182,15 @@ export function loadConfig(env: Env, readFile: (path: string) => string = defaul
   const httpPath = parseHttpPath(env, issues);
   const userAgent = parseUserAgent(env, issues);
   const auditLog = clean(env.WOOCOMMERCE_AUDIT_LOG) ?? null;
+  const approvalSecret = parseApprovalSecret(env, issues);
+  const approvalTtlSeconds = parseIntInRange(
+    env,
+    'WOOCOMMERCE_APPROVAL_TTL_SECONDS',
+    DEFAULT_APPROVAL_TTL_SECONDS,
+    30,
+    3_600,
+    issues,
+  );
   const httpAuth = parseHttpAuth(env, issues);
   const httpHost = parseHttpHost(env, httpAuth !== null, issues);
   const httpAllowedHosts = parseList(env.MCP_HTTP_ALLOWED_HOSTS);
@@ -222,7 +239,8 @@ export function loadConfig(env: Env, readFile: (path: string) => string = defaul
     cacheTtlMs === undefined ||
     cacheMaxEntries === undefined ||
     webhookBuffer === undefined ||
-    webhookPath === undefined
+    webhookPath === undefined ||
+    approvalTtlSeconds === undefined
   ) {
     throw new ConfigError(`Invalid configuration:\n${issues.map((issue) => `- ${issue}`).join('\n')}`);
   }
@@ -236,6 +254,8 @@ export function loadConfig(env: Env, readFile: (path: string) => string = defaul
     userAgent,
     debug,
     requireConfirmation,
+    approvalSecret,
+    approvalTtlSeconds,
     auditLog,
     telemetry,
     transport,
@@ -303,6 +323,11 @@ export function authWarnings(config: AppConfig): string[] {
   if (config.transport === 'http' && config.httpAuth === null && config.stores.some((store) => !store.readOnly)) {
     warnings.push(
       'The HTTP endpoint has no bearer authentication while writes are enabled. Any local process can call write tools. Set MCP_HTTP_AUTH_TOKENS.',
+    );
+  }
+  if (config.approvalSecret !== null && !config.requireConfirmation) {
+    warnings.push(
+      'WOOCOMMERCE_REQUIRE_CONFIRMATION=false is ignored while WOOCOMMERCE_APPROVAL_SECRET is set: every write needs a preview and a signed approval.',
     );
   }
   if (config.transport !== 'http' && config.stores.some((store) => store.webhookSecret !== null)) {
@@ -643,6 +668,19 @@ function parseSecret(env: Env, name: string, issues: string[]): string | undefin
     return undefined;
   }
   return parsed.data;
+}
+
+/** Reads WOOCOMMERCE_APPROVAL_SECRET. The value is never included in an error message. */
+function parseApprovalSecret(env: Env, issues: string[]): string | null {
+  const value = clean(env.WOOCOMMERCE_APPROVAL_SECRET);
+  if (value === undefined) return null;
+  if (value.length < MIN_APPROVAL_SECRET_LENGTH || value.length > 512 || /\s/.test(value)) {
+    issues.push(
+      `WOOCOMMERCE_APPROVAL_SECRET: must be ${MIN_APPROVAL_SECRET_LENGTH} to 512 characters without whitespace, for example the output of openssl rand -base64 32`,
+    );
+    return null;
+  }
+  return value;
 }
 
 function parseFlag(env: Env, name: string, fallback: boolean, issues: string[]): boolean {

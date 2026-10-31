@@ -2,6 +2,16 @@ import { appendFile } from 'node:fs/promises';
 
 export type AuditOutcome = 'applied' | 'dry_run' | 'confirmation_required' | 'refused' | 'failed';
 
+/** How a confirm's signed approval was checked. Present only when signed approvals are required. */
+export interface AuditApproval {
+  mode: 'signed';
+  result: 'verified' | 'missing' | 'invalid' | 'expired' | 'mismatch' | 'replayed';
+  /** Token id (jti) of a correctly signed token. Never the token itself. */
+  tokenId?: string;
+  /** Approver label from the token, when the signer set one. */
+  by?: string;
+}
+
 export interface AuditEntry {
   time: string;
   tool: string;
@@ -23,6 +33,19 @@ export interface AuditEntry {
   stateMatch?: boolean;
   /** Set on a stale_preview refusal: the state id of the preview and of the store now. */
   stale?: { previewStateId: string; currentStateId: string | null };
+  /** Signed approval check for this confirm, when signed approvals are required. */
+  approval?: AuditApproval;
+  /**
+   * On a confirmation_required entry while signed approvals are required:
+   * the records the preview read, with before and after values, so the
+   * approve command can show them.
+   */
+  preconditions?: {
+    stateId: string;
+    recordCount: number;
+    records: { resource: string; dateModified: string | null; before?: Record<string, unknown>; after?: Record<string, unknown> }[];
+    truncated?: boolean;
+  };
   error?: { code: string; message: string };
   client?: string;
 }

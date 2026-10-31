@@ -74,6 +74,8 @@ The single-store variables can be used at the same time; that store is added fir
 | --- | --- | --- |
 | `WOOCOMMERCE_REQUIRE_CONFIRMATION` | `true` | Write tools return a preview until called with `confirm: true` |
 | `WOOCOMMERCE_AUDIT_LOG` | off | Path of a JSON Lines file (created with mode 0600), or `stderr` |
+| `WOOCOMMERCE_APPROVAL_SECRET` | off | 32 characters or more. When set, every confirmed write needs an `approval` token signed with it, and writes always preview first. See [Signed approvals](safe-writes.md#signed-approvals). Never put it where the agent can read it, such as an MCP client config |
+| `WOOCOMMERCE_APPROVAL_TTL_SECONDS` | `600` | Longest approval token lifetime the server accepts, 30 to 3600. Also the default lifetime for `woocommerce-mcp approve` |
 
 ## Tool allow and deny lists
 

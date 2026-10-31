@@ -101,9 +101,11 @@ export class ToolDisabledError extends Error {
 export class PreviewMismatchError extends Error {
   readonly code = 'preview_mismatch' as const;
 
-  constructor(toolName: string, storeId: string, previewId: string) {
+  constructor(toolName: string, storeId: string, previewId: string, reason: 'arguments' | 'missing_state' = 'arguments') {
     super(
-      `Refused to run ${toolName}: previewId "${previewId}" does not match these arguments for store "${storeId}". Nothing was sent to the store. Repeat the exact previewed arguments, or call the tool without confirm to get a new preview.`,
+      reason === 'missing_state'
+        ? `Refused to run ${toolName}: previewId "${previewId}" lacks the state part this change is computed from for store "${storeId}". Nothing was sent to the store. Call the tool without confirm to get a new preview, and have the user approve its full previewId.`
+        : `Refused to run ${toolName}: previewId "${previewId}" does not match these arguments for store "${storeId}". Nothing was sent to the store. Repeat the exact previewed arguments, or call the tool without confirm to get a new preview.`,
     );
     this.name = 'PreviewMismatchError';
   }

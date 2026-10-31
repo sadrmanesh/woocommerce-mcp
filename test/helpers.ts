@@ -29,9 +29,11 @@ export function testConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     timeoutMs: 5_000,
     maxRetries: 2,
     defaultPerPage: 10,
-    userAgent: 'woocommerce-mcp/0.5.0',
+    userAgent: 'woocommerce-mcp/0.6.0',
     debug: false,
     requireConfirmation: true,
+    approvalSecret: null,
+    approvalTtlSeconds: 600,
     auditLog: null,
     telemetry: false,
     transport: 'stdio',
@@ -71,12 +73,13 @@ export const testHooks = (fetchImpl: typeof fetch): ClientHooks => ({
 export function testRuntime(
   fetchImpl: typeof fetch,
   overrides: Partial<AppConfig> = {},
-  options: { audit?: AuditLog; scopesEnforced?: boolean } = {},
+  options: { audit?: AuditLog; scopesEnforced?: boolean; approvalNow?: () => number } = {},
 ): Runtime & { audit: AuditLog } {
   return createRuntime(testConfig(overrides), {
     hooks: testHooks(fetchImpl),
     audit: options.audit ?? memoryAuditLog(),
     ...(options.scopesEnforced !== undefined ? { scopesEnforced: options.scopesEnforced } : {}),
+    ...(options.approvalNow !== undefined ? { approvalNow: options.approvalNow } : {}),
   });
 }
 

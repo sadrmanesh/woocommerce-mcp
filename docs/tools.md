@@ -139,6 +139,7 @@ Each write tool also accepts:
 - `dryRun: true`: always return a preview and send nothing
 - `confirm: true`: apply the change
 - `previewId`: the id from the preview being confirmed. The call is refused with `preview_mismatch` if the arguments differ from that preview, and with `stale_preview` if the store data the change was computed from has changed since
+- `approval`: listed only when the server requires signed approvals. A token the user signed for this `previewId` outside the conversation; see [Signed approvals](safe-writes.md#signed-approvals)
 
 When confirmation is required (the default), a call without `confirm: true` returns:
 
