@@ -5,6 +5,7 @@ import {
   InputError,
   PreviewMismatchError,
   ReadOnlyModeError,
+  StalePreviewError,
   ToolDisabledError,
   UnknownStoreError,
   WooCommerceApiError,
@@ -57,6 +58,9 @@ export function serializeError(error: unknown): ErrorPayload {
     error instanceof ToolDisabledError
   ) {
     return { error: { message: error.message, code: error.code } };
+  }
+  if (error instanceof StalePreviewError) {
+    return { error: { message: error.message, code: error.code, details: error.details } };
   }
   if (error instanceof WooCommerceApiError) {
     return {

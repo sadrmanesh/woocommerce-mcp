@@ -34,7 +34,7 @@ Listed on the [official MCP Registry](https://registry.modelcontextprotocol.io/v
 ## Highlights
 
 - **Multi-store.** Configure any number of stores and pick one per call with `store`. Each store has its own credentials and its own read-only switch.
-- **Safe by default.** Stores are read-only until you allow writes. Write tools then return a preview of the exact REST request and apply it only when called again with `confirm: true`. `dryRun: true` always previews.
+- **Safe by default.** Stores are read-only until you allow writes. Write tools then return a preview of the exact REST request and apply it only when called again with `confirm: true`. A confirm is refused if the arguments or the store data the change was computed from changed since the preview. `dryRun: true` always previews.
 - **Audit log.** One JSON line per write attempt: applied, previewed, refused, or failed, with the tool, store, arguments, caller, and a preview id that links each confirmed write to its preview.
 - **Refunds and bulk operations.** Partial or line-item refunds, batch updates of up to 100 products, and percentage or fixed price adjustments.
 - **Analytics.** Sales by day, week, or month with refunds, average order value, top products, and payment methods, plus a low-stock report that covers variations.
@@ -62,7 +62,7 @@ Or run the Docker image from the GitHub Container Registry (`linux/amd64` and `l
 ```bash
 docker run --rm -i -e MCP_TRANSPORT=stdio \
   -e WOOCOMMERCE_URL -e WOOCOMMERCE_CONSUMER_KEY -e WOOCOMMERCE_CONSUMER_SECRET \
-  ghcr.io/sadrmanesh/woocommerce-mcp:0.4.0
+  ghcr.io/sadrmanesh/woocommerce-mcp:0.5.0
 ```
 
 The npm package is also on GitHub Packages; see [Install options](docs/install.md#github-packages) for the `.npmrc` setup. npmjs.com remains the main registry.
@@ -183,7 +183,9 @@ Full argument and response details are in [docs/tools.md](docs/tools.md).
    }
    ```
 
-   Calling the tool again with the same arguments and `confirm: true` applies it. `dryRun: true` always previews, even with confirmation turned off. Every preview carries a `previewId`; send it back with `confirm: true` and the server refuses the call if the arguments changed since the preview.
+   Calling the tool again with the same arguments and `confirm: true` applies it. `dryRun: true` always previews, even with confirmation turned off. Every preview carries a `previewId`; send it back with `confirm: true` and the server refuses the call with `preview_mismatch` if the arguments changed since the preview.
+
+   Tools that compute a write from store data, such as a 10% price increase, resolve it at preview time: the preview lists each record it read under `preconditions`, with the current values (`before`) and the absolute values the write will set (`after`), and the `previewId` gains a second part that fingerprints that data. On confirm the server reads the same data again, and if it changed, for example because the price was edited in between, the call is refused with `stale_preview` and nothing is sent. See [Stale previews](docs/safe-writes.md#stale-previews) for what is and is not covered.
 3. **Scopes.** Over authenticated HTTP, write tools also need the `woocommerce:write` scope. Read-only tokens can never change a store.
 4. **Audit.** Set `WOOCOMMERCE_AUDIT_LOG` to a file path or `stderr`:
 

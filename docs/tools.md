@@ -138,7 +138,7 @@ Each write tool also accepts:
 
 - `dryRun: true`: always return a preview and send nothing
 - `confirm: true`: apply the change
-- `previewId`: the id from the preview being confirmed. The call is refused with `preview_mismatch` if the arguments differ from that preview
+- `previewId`: the id from the preview being confirmed. The call is refused with `preview_mismatch` if the arguments differ from that preview, and with `stale_preview` if the store data the change was computed from has changed since
 
 When confirmation is required (the default), a call without `confirm: true` returns:
 
@@ -157,7 +157,7 @@ When confirmation is required (the default), a call without `confirm: true` retu
 }
 ```
 
-A dry run returns `"status": "dry_run"` with the same `request` and `previewId`. Pass `previewId` with `confirm: true` to have the server check that the confirmed arguments are the ones that were previewed; see [Preview ids](safe-writes.md#preview-ids). If the tool would not write anything, the status is `no_change`. Previews may read from the store, for example to compute new prices, but never write. Because the confirmed call runs again, a bulk price change is computed from the prices at that moment.
+A dry run returns `"status": "dry_run"` with the same `request` and `previewId`. Pass `previewId` with `confirm: true` to have the server check that the confirmed arguments are the ones that were previewed; see [Preview ids](safe-writes.md#preview-ids). If the tool would not write anything, the status is `no_change`. Previews may read from the store, for example to compute new prices, but never write. When they do, the preview also has a `preconditions` block listing each record read, with `before` and `after` values for the fields the write sets, and the `previewId` has a second part that fingerprints that data. A confirm that sends this `previewId` is refused with `stale_preview` if the data changed; see [Stale previews](safe-writes.md#stale-previews). A confirm without `previewId` runs again and computes a bulk price change from the prices at that moment, as before.
 
 A write to a read-only store fails with `read_only`. Over authenticated HTTP, a token without the `woocommerce:write` scope fails with `insufficient_scope`.
 
