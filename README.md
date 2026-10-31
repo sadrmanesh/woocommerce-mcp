@@ -6,6 +6,8 @@
 [![Docs](https://img.shields.io/badge/docs-sadrmanesh.github.io-7e57c2)](https://sadrmanesh.github.io/woocommerce-mcp/)
 [![npm](https://img.shields.io/npm/v/@sadrmanesh/woocommerce-mcp)](https://www.npmjs.com/package/@sadrmanesh/woocommerce-mcp)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-io.github.sadrmanesh%2Fwoocommerce--mcp-0a7d5a)](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.sadrmanesh/woocommerce-mcp)
+[![Glama MCP server score](https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp/badges/score.svg)](https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp)
+[![Listed on mcpservers.org](https://mcpservers.org/badge.svg)](https://mcpservers.org/servers/sadrmanesh/woocommerce-mcp)
 
 A [Model Context Protocol](https://modelcontextprotocol.io) server for running one or more WooCommerce stores through the WooCommerce REST API. MCP clients can browse the catalog, work through and fulfill orders, issue refunds, adjust prices and stock in bulk, run promotions, segment customers, react to webhooks, and read sales analytics. Every change is previewed before it is applied and can be written to an audit log.
 
@@ -13,7 +15,9 @@ It runs locally over stdio, or as a remote service over streamable HTTP with bea
 
 **Documentation:** <https://sadrmanesh.github.io/woocommerce-mcp/> · **Tool explorer:** [Hugging Face Space](https://huggingface.co/spaces/sadrmanesh/woocommerce-mcp-explorer)
 
-Listed on the [official MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.sadrmanesh/woocommerce-mcp) as `io.github.sadrmanesh/woocommerce-mcp`.
+Listed on the [official MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.sadrmanesh/woocommerce-mcp) as `io.github.sadrmanesh/woocommerce-mcp`, on [Glama](https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp), and on [mcpservers.org](https://mcpservers.org/servers/sadrmanesh/woocommerce-mcp).
+
+<a href="https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp"><img width="380" height="200" src="https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp/badges/card.svg" alt="woocommerce-mcp MCP server on Glama" /></a>
 
 ## Contents
 
