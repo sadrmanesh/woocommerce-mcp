@@ -8,6 +8,8 @@ title: معرفی فارسی
 
 **woocommerce-mcp** یک سرور متن باز بر پایه Model Context Protocol است که به کلاینت ها و ابزارهای سازگار با MCP اجازه می دهد یک یا چند فروشگاه ووکامرس را از طریق REST API مدیریت کنند. با آن می توان کاتالوگ محصولات را مرور کرد، سفارش ها را پیگیری کرد، مرجوعی ثبت کرد، قیمت و موجودی را به صورت گروهی تغییر داد و گزارش فروش گرفت.
 
+این سرور در [MCP Registry رسمی](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.sadrmanesh/woocommerce-mcp)، [Glama](https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp) و [mcpservers.org](https://mcpservers.org/servers/sadrmanesh/woocommerce-mcp) ثبت شده است.
+
 ## ویژگی های اصلی
 
 - **چند فروشگاه در یک سرور:** هر فروشگاه کلید و تنظیمات جداگانه خودش را دارد و در هر درخواست می توان فروشگاه را انتخاب کرد.
