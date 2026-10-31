@@ -9,6 +9,13 @@ export interface AuditEntry {
   outcome: AuditOutcome;
   arguments: Record<string, unknown>;
   request?: { method: string; path: string };
+  /**
+   * Fingerprint of tool, store, and arguments. Previews return it, and a
+   * confirm call can send it back so the applied entry links to its preview.
+   */
+  previewId?: string;
+  /** Present when the call supplied a previewId: whether it matched the arguments. */
+  previewMatch?: boolean;
   error?: { code: string; message: string };
   client?: string;
 }

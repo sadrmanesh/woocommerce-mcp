@@ -15,7 +15,7 @@ const INSTRUCTIONS = [
   'Call woocommerce_list_stores first when more than one store may be configured, and pass its id as store. Without store, the default store is used.',
   'List tools return a short summary and pagination. Get tools return the REST resource without _links.',
   'Write tools are refused for read-only stores, which is the default.',
-  'When a write tool returns status confirmation_required, nothing was changed: show the request to the user and call the tool again with confirm: true only after they approve it. dryRun: true always previews without writing.',
+  'When a write tool returns status confirmation_required, nothing was changed: show the request to the user and call the tool again with confirm: true and the returned previewId only after they approve it. dryRun: true always previews without writing.',
   'Refunds cannot be undone. create_refund records a manual refund unless apiRefund is true.',
   'Prices are decimal strings or numbers. Report dates are YYYY-MM-DD. Order and product date filters are ISO-8601 date-times.',
   'Prefer draft status when creating products unless the user asked to publish.',

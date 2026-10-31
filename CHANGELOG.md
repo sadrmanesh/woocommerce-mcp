@@ -7,11 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-31
+
 ### Added
 
+- Preview ids for writes. Every `confirmation_required`, `dry_run`, and `no_change` response includes a `previewId`: `pv_` and 16 hex characters of a SHA-256 over the tool name, store id, and arguments with sorted keys. A confirm call can pass it back as `previewId`. The server recomputes it from the call's own arguments and refuses the write with `preview_mismatch`, before contacting the store, if they differ from the preview.
+- Audit entries for writes carry `previewId`, so a preview and the confirmed write that followed it share one id. When the caller supplied a `previewId`, the entry also records `previewMatch`. See the Preview ids section of the safe writes guide.
 - An optional Docker Hub job in the release workflow. When the `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` secrets are set, it copies the released GHCR image to `docker.io/<username>/woocommerce-mcp` with the same tags. Without them it skips.
 - A tool explorer on Hugging Face, <https://huggingface.co/spaces/sadrmanesh/woocommerce-mcp-explorer>, that lists every tool, prompt, and resource with its input schema and builds `tools/call` requests. The README and docs link to it, and the README names the Docker Hub image `sadrmanesh/woocommerce-mcp`.
 - `.github/workflows/mirror.yml`, which mirrors `main` and tags to `gitlab.com/sadrmanesh/woocommerce-mcp` when the `GITLAB_TOKEN` secret is set, and skips cleanly otherwise.
+
+### Changed
+
+- `previewId` is optional, so a confirm call without it works as before. Its audit entry records the id its arguments would have had.
+- Tool descriptions, the server instructions, and the `confirmation_required` message ask clients to send `previewId` back with `confirm: true`.
+- `server.json`, the package version, and the Docker Compose image tag are now 0.4.0.
 
 ## [0.3.2] - 2026-10-30
 
@@ -103,7 +113,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configuration through environment variables, documented in `.env.example`.
 - Tests with mocked HTTP, ESLint, and a GitHub Actions workflow.
 
-[Unreleased]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.3.2...HEAD
+[Unreleased]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.3.1...v0.3.2
 [0.3.1]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.2.0...v0.3.0

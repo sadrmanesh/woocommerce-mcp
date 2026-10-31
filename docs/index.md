@@ -30,7 +30,7 @@ npx -y @sadrmanesh/woocommerce-mcp
 
 - **Multi-store.** Configure any number of stores and pick one per call with `store`. Each store has its own credentials and its own read-only switch.
 - **Safe by default.** Stores are read-only until you allow writes. Write tools then return a preview of the exact REST request and apply it only when called again with `confirm: true`. `dryRun: true` always previews.
-- **Audit log.** One JSON line per write attempt: applied, previewed, refused, or failed, with the tool, store, arguments, and caller.
+- **Audit log.** One JSON line per write attempt: applied, previewed, refused, or failed, with the tool, store, arguments, caller, and a preview id that links each confirmed write to its preview.
 - **Refunds and bulk operations.** Partial or line-item refunds, batch updates of up to 100 products, and percentage or fixed price adjustments.
 - **Analytics.** Sales by day, week, or month with refunds, average order value, top products, and payment methods, plus a low-stock report that covers variations.
 - **Promotions and customers.** Coupon performance, scheduled sales, and customer segments such as VIP, repeat, and at risk.

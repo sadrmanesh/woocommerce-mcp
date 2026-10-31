@@ -14,8 +14,10 @@ The server logs to stderr only, so stdout stays reserved for the stdio transport
 | `tool` | Tool name |
 | `store` | Store id |
 | `outcome` | `applied`, `dry_run`, `confirmation_required`, `refused`, or `failed` |
-| `arguments` | Tool arguments, without `store`, `dryRun`, and `confirm` |
+| `arguments` | Tool arguments, without `store`, `dryRun`, `confirm`, and `previewId` |
 | `request` | Method and path of the planned request, for previews |
+| `previewId` | Fingerprint of tool, store, and arguments. Previews return it; a confirm call can send it back. See [Preview ids](safe-writes.md#preview-ids) |
+| `previewMatch` | Only when the call supplied a `previewId`: whether it matched the arguments |
 | `error` | Error code and message, for `refused` and `failed` |
 | `client` | Token client id, over authenticated HTTP |
 
