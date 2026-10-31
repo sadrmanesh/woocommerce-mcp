@@ -15,6 +15,8 @@ It runs locally over stdio, or as a remote service over streamable HTTP with bea
 
 **Documentation:** <https://sadrmanesh.github.io/woocommerce-mcp/> · **Tool explorer:** [Hugging Face Space](https://huggingface.co/spaces/sadrmanesh/woocommerce-mcp-explorer)
 
+**Read more:** [Safe write tools for agents: preview, confirm, audit, and stale previews in a WooCommerce MCP server](https://dev.to/sadrmanesh/safe-write-tools-for-agents-preview-confirm-audit-and-stale-previews-in-a-woocommerce-mcp-server-2c66) on Dev.to · [Preview, confirm, audit](https://www.linkedin.com/pulse/preview-confirm-audit-designing-safe-write-tools-ai-live-sadrmanesh-jwy5f/) on LinkedIn
+
 Listed on the [official MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.sadrmanesh/woocommerce-mcp) as `io.github.sadrmanesh/woocommerce-mcp`, on [Glama](https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp), and on [mcpservers.org](https://mcpservers.org/servers/sadrmanesh/woocommerce-mcp).
 
 <a href="https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp"><img width="380" height="200" src="https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp/badges/card.svg" alt="woocommerce-mcp MCP server on Glama" /></a>
