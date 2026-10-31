@@ -37,6 +37,7 @@ Listed on the [official MCP Registry](https://registry.modelcontextprotocol.io/v
 
 - **Multi-store.** Configure any number of stores and pick one per call with `store`. Each store has its own credentials and its own read-only switch.
 - **Safe by default.** Stores are read-only until you allow writes. Write tools then return a preview of the exact REST request and apply it only when called again with `confirm: true`. A confirm is refused if the arguments or the store data the change was computed from changed since the preview. `dryRun: true` always previews.
+- **Signed approvals (optional).** Set `WOOCOMMERCE_APPROVAL_SECRET` and a confirm also needs a short-lived, single-use token signed for that exact preview by someone outside the agent's reach, for example with `woocommerce-mcp approve <previewId>`. The agent cannot approve its own writes.
 - **Audit log.** One JSON line per write attempt: applied, previewed, refused, or failed, with the tool, store, arguments, caller, and a preview id that links each confirmed write to its preview.
 - **Refunds and bulk operations.** Partial or line-item refunds, batch updates of up to 100 products, and percentage or fixed price adjustments.
 - **Analytics.** Sales by day, week, or month with refunds, average order value, top products, and payment methods, plus a low-stock report that covers variations.
@@ -64,7 +65,7 @@ Or run the Docker image from the GitHub Container Registry (`linux/amd64` and `l
 ```bash
 docker run --rm -i -e MCP_TRANSPORT=stdio \
   -e WOOCOMMERCE_URL -e WOOCOMMERCE_CONSUMER_KEY -e WOOCOMMERCE_CONSUMER_SECRET \
-  ghcr.io/sadrmanesh/woocommerce-mcp:0.5.0
+  ghcr.io/sadrmanesh/woocommerce-mcp:0.6.0
 ```
 
 The npm package is also on GitHub Packages; see [Install options](docs/install.md#github-packages) for the `.npmrc` setup. npmjs.com remains the main registry.
@@ -194,6 +195,15 @@ Full argument and response details are in [docs/tools.md](docs/tools.md).
    ```json
    {"time":"2026-10-30T14:02:11.120Z","tool":"woocommerce_update_order_status","store":"default","outcome":"applied","arguments":{"id":1015,"status":"completed"},"client":"static:3f9a1c2b7d10","previewId":"pv_4f1c9a2e7b3d0856","previewMatch":true}
    ```
+5. **Signed approvals (optional).** A preview id binds *what* is confirmed, not *who* confirmed it: by default an agent can request a preview and confirm it in the same turn. Set `WOOCOMMERCE_APPROVAL_SECRET` to require an `approval` token on every confirm. The token is an HMAC-SHA256 signature over the exact `previewId` (state part included), tool, store, and an expiry, so it cannot be reused for other arguments or a changed store. Tokens are single-use and expire after 10 minutes by default. A person signs one after reviewing the preview:
+
+   ```bash
+   woocommerce-mcp approve pv_e2a742fe51c807fc_a3510d17b8a51b93 --by "Naser"
+   ```
+
+   The command shows the previewed change from the audit log, asks for a yes, and prints the token, which the agent passes back as `approval` with `confirm: true`. Missing, invalid, expired, mismatched, and reused tokens are refused with `approval_required`, `approval_invalid`, `approval_expired`, `approval_mismatch`, and `approval_replayed`. The token format is documented, so an approval page or webhook can sign too.
+
+   What this is not: whoever holds the secret can approve, so keep it out of MCP client configs, prompts, and any host the agent has a shell on. Spent tokens are tracked in memory per process. Without the secret, behavior is exactly as in 0.5.0. See [Signed approvals](docs/safe-writes.md#signed-approvals).
 
 Refunds created by `woocommerce_create_refund` are recorded as manual refunds unless `apiRefund: true` asks the payment gateway to return the money.
 
@@ -210,6 +220,8 @@ The most common settings are below. Every variable, including the multi-store fi
 | `WOOCOMMERCE_DEFAULT_STORE` | first store | Store used when a call omits `store` |
 | `WOOCOMMERCE_REQUIRE_CONFIRMATION` | `true` | Preview writes until `confirm: true` |
 | `WOOCOMMERCE_AUDIT_LOG` | off | File path or `stderr` |
+| `WOOCOMMERCE_APPROVAL_SECRET` | off | Require a signed approval token on every confirmed write. Keep it away from the agent |
+| `WOOCOMMERCE_APPROVAL_TTL_SECONDS` | `600` | Longest approval token lifetime the server accepts |
 | `MCP_TRANSPORT` | `stdio` | `stdio` or `http` |
 | `MCP_HTTP_HOST` / `_PORT` / `_PATH` | `127.0.0.1` / `3000` / `/mcp` | HTTP listener |
 | `MCP_HTTP_AUTH_TOKENS` | | Full-access bearer tokens |

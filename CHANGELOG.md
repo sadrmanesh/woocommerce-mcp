@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-31
+
+### Added
+
+- Signed approvals, an opt-in mode that binds who confirmed a write, not only what was confirmed. Set `WOOCOMMERCE_APPROVAL_SECRET` (32 characters or more) and every confirmed write also needs an `approval` token: `wmcp1.<payload>.<signature>`, an HMAC-SHA256 over the exact `previewId` (state part included), tool, store, issue time, expiry, and a token id. The server verifies it in constant time before the stale check and before anything is written. Thanks to the readers who pointed out that a two-step flow alone cannot tell a person's confirm from an agent's.
+- New refusal codes: `approval_required`, `approval_invalid`, `approval_expired`, `approval_mismatch`, and `approval_replayed`. Tokens are single-use, and spent token ids are kept in memory until they expire.
+- `WOOCOMMERCE_APPROVAL_TTL_SECONDS` (default 600, 30 to 3600) caps how long a token may be valid.
+- `woocommerce-mcp approve <previewId>`, an out-of-band signer. It reads the secret from the environment, shows the previewed change from the audit log (tool, store, arguments, request, and `before` and `after` per record), asks for confirmation, and prints the token. Options: `--tool`, `--store`, `--ttl`, `--by`, `--audit-log`, and `--yes`.
+- `signApproval`, `ApprovalVerifier`, and `ApprovalError` are exported for approval pages and webhooks written in Node.js. The token format is documented for other languages.
+- Audit entries for confirms record an `approval` object with the mode, the result, the token id, and the approver label. Preview entries keep their `preconditions` records while signed approvals are on, so `approve` can show them. The token and the secret are never logged.
+- A Signed approvals section in the safe writes guide, covering the flow, the token format, how to keep the secret away from the agent, and what the mode does not guarantee.
+
+### Changed
+
+- While signed approvals are on, writes always preview first, even with `WOOCOMMERCE_REQUIRE_CONFIRMATION=false` (the server warns at start-up), and a confirm with a one-part `previewId` for a change computed from store data is refused with `preview_mismatch`.
+- Write tools list the `approval` input, and the server instructions explain the approval step, only while signed approvals are on.
+- Without `WOOCOMMERCE_APPROVAL_SECRET`, behavior is unchanged from 0.5.0.
+- `server.json`, the package version, and the Docker Compose image tag are now 0.6.0.
+
 ## [0.5.0] - 2026-10-31
 
 ### Added
@@ -130,7 +149,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configuration through environment variables, documented in `.env.example`.
 - Tests with mocked HTTP, ESLint, and a GitHub Actions workflow.
 
-[Unreleased]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.3.2...v0.4.0
 [0.3.2]: https://github.com/sadrmanesh/woocommerce-mcp/compare/v0.3.1...v0.3.2

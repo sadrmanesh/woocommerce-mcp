@@ -1,3 +1,4 @@
+import type { ApprovalVerifier } from '../approval.js';
 import type { AuditLog } from '../audit.js';
 import type { StoreConfig, ToolFilter, TrackingMode } from '../config.js';
 import type { WebhookEventStore } from '../webhooks.js';
@@ -27,6 +28,8 @@ export interface Runtime {
   defaultStore: string;
   defaultPerPage: number;
   requireConfirmation: boolean;
+  /** Set when WOOCOMMERCE_APPROVAL_SECRET is configured: confirmed writes need a signed approval. */
+  approval: ApprovalVerifier | null;
   audit: AuditLog;
   /** True when the HTTP endpoint verifies bearer tokens, so scopes apply. */
   scopesEnforced: boolean;

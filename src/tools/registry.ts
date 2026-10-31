@@ -1,7 +1,8 @@
 import type { AuthInfo, McpServer, ToolAnnotations } from '@modelcontextprotocol/server';
 import * as z from 'zod/v4';
 
-import type { AuditEntry, AuditOutcome } from '../audit.js';
+import { ApprovalError } from '../approval.js';
+import type { AuditApproval, AuditEntry, AuditOutcome } from '../audit.js';
 import { SCOPES, toolAllowed } from '../config.js';
 import { redactPersonalData } from '../redact.js';
 import { withSpan } from '../telemetry.js';
@@ -72,6 +73,20 @@ const writeFields = {
     ),
 };
 
+/** Added to write tools when WOOCOMMERCE_APPROVAL_SECRET is set. */
+export const APPROVAL_NOTE =
+  'This server requires a signed approval: a confirm must also pass approval, a token the user creates for this previewId outside the conversation. You cannot create one yourself.';
+
+const approvalField = z
+  .string()
+  .trim()
+  .min(1)
+  .max(2048)
+  .optional()
+  .describe(
+    'Signed approval token for this previewId, given to you by the user. Required with confirm: true when the server requires signed approvals',
+  );
+
 type AnyObject = z.ZodObject<z.ZodRawShape>;
 
 export interface ToolSpec<S extends AnyObject> {
@@ -89,20 +104,23 @@ interface CallMeta {
   dryRun?: boolean;
   confirm?: boolean;
   previewId?: string;
+  approval?: string;
 }
 
 export function defineTool<S extends AnyObject>(server: McpServer, runtime: Runtime, spec: ToolSpec<S>): void {
   if (!toolAllowed(runtime.tools, spec.name)) return;
   // Hide tools that no configured store allows.
   if (!runtime.stores.some((store) => toolAllowed(store.config.tools, spec.name))) return;
+  const signed = runtime.approval !== null;
   const schema = spec.write
-    ? spec.input.extend({ store: storeField, ...writeFields })
+    ? spec.input.extend({ store: storeField, ...writeFields, ...(signed ? { approval: approvalField } : {}) })
     : spec.input.extend({ store: storeField });
+  const note = signed ? `${WRITE_NOTE} ${APPROVAL_NOTE}` : WRITE_NOTE;
   server.registerTool(
     spec.name,
     {
       title: spec.title,
-      description: spec.write ? `${spec.description} ${WRITE_NOTE}` : spec.description,
+      description: spec.write ? `${spec.description} ${note}` : spec.description,
       inputSchema: schema,
       annotations: spec.annotations,
     },
@@ -117,7 +135,7 @@ export async function runTool<S extends AnyObject>(
   input: z.infer<S> & CallMeta,
   authInfo?: AuthInfo,
 ): Promise<ToolResult> {
-  const { store: storeId, dryRun, confirm, previewId: suppliedPreviewId, ...rest } = input;
+  const { store: storeId, dryRun, confirm, previewId: suppliedPreviewId, approval: approvalToken, ...rest } = input;
   const args = rest as z.infer<S>;
   return withSpan(
     `tool ${spec.name}`,
@@ -126,6 +144,8 @@ export async function runTool<S extends AnyObject>(
       let storeLabel = storeId ?? runtime.defaultStore;
       // Set once the store is known: links this call to its preview in the audit log.
       let link: Pick<AuditEntry, 'previewId' | 'previewMatch' | 'stateMatch'> = {};
+      // Set on confirms when signed approvals are required.
+      let approvalAudit: AuditApproval | undefined;
       const audit = async (outcome: AuditOutcome, extra: Partial<AuditEntry> = {}): Promise<void> => {
         if (!spec.write) return;
         span.setAttribute('woocommerce.write.outcome', outcome);
@@ -137,6 +157,7 @@ export async function runTool<S extends AnyObject>(
           arguments: args as Record<string, unknown>,
           ...(authInfo ? { client: authInfo.clientId } : {}),
           ...link,
+          ...(approvalAudit ? { approval: approvalAudit } : {}),
           ...extra,
         });
       };
@@ -162,7 +183,10 @@ export async function runTool<S extends AnyObject>(
           throw new ForbiddenError(`Refused to run ${spec.name}: the access token lacks the ${SCOPES.write} scope.`);
         }
         const argumentsId = previewIdFor(spec.name, handle.config.id, args as Record<string, unknown>);
-        const preview = dryRun === true || (runtime.requireConfirmation && confirm !== true);
+        const verifier = runtime.approval;
+        // Signed approvals only make sense with a preview to approve, so they imply confirmation.
+        const confirmationRequired = runtime.requireConfirmation || verifier !== null;
+        const preview = dryRun === true || (confirmationRequired && confirm !== true);
         const supplied = !preview && suppliedPreviewId !== undefined ? splitPreviewId(suppliedPreviewId) : null;
         link =
           supplied !== null
@@ -174,7 +198,38 @@ export async function runTool<S extends AnyObject>(
           if (link.previewMatch === false) {
             throw new PreviewMismatchError(spec.name, handle.config.id, suppliedPreviewId ?? '');
           }
-          if (supplied?.stateId) {
+          if (verifier !== null) {
+            approvalAudit = { mode: 'signed', result: 'missing' };
+            if (suppliedPreviewId === undefined) {
+              throw new ApprovalError(
+                'approval_required',
+                `Refused to run ${spec.name}: this server requires a signed approval for every write, and an approval is bound to a previewId. Nothing was sent to the store. Call the tool without confirm to get a preview, show it to the user, and ask them to approve its previewId.`,
+              );
+            }
+            const claims = verifier.consume(approvalToken, {
+              previewId: suppliedPreviewId,
+              tool: spec.name,
+              store: handle.config.id,
+            });
+            approvalAudit = { mode: 'signed', result: 'verified', tokenId: claims.jti, ...(claims.by ? { by: claims.by } : {}) };
+            // The approval covers the exact preview, so the full id must match the store as it is now.
+            const { state } = await plan(spec, ctx, handle.client, args);
+            const currentStateId = state?.stateId ?? null;
+            if (supplied?.stateId === null && currentStateId !== null) {
+              throw new PreviewMismatchError(spec.name, handle.config.id, suppliedPreviewId, 'missing_state');
+            }
+            if (supplied?.stateId) {
+              link = { ...link, stateMatch: currentStateId === supplied.stateId };
+              if (!link.stateMatch) {
+                const shown = state === null ? [] : state.records;
+                throw new StalePreviewError(spec.name, handle.config.id, {
+                  previewStateId: supplied.stateId,
+                  currentStateId,
+                  current: handle.config.redactPii ? redactPersonalData(shown) : shown,
+                });
+              }
+            }
+          } else if (supplied?.stateId) {
             // Re-run the plan on fresh reads and compare the state it was computed from.
             const { state } = await plan(spec, ctx, handle.client, args);
             const currentStateId = state?.stateId ?? null;
@@ -216,7 +271,10 @@ export async function runTool<S extends AnyObject>(
             ...preconditions,
           });
         }
-        await audit('confirmation_required', { request });
+        await audit('confirmation_required', {
+          request,
+          ...(verifier !== null && planned.state !== null ? { preconditions: auditState(planned.state, handle.config.redactPii) } : {}),
+        });
         return plainJsonResult({
           status: 'confirmation_required',
           store: handle.config.id,
@@ -233,7 +291,16 @@ export async function runTool<S extends AnyObject>(
           error instanceof ForbiddenError ||
           error instanceof ToolDisabledError ||
           error instanceof PreviewMismatchError ||
-          error instanceof StalePreviewError;
+          error instanceof StalePreviewError ||
+          error instanceof ApprovalError;
+        if (error instanceof ApprovalError) {
+          approvalAudit = {
+            mode: 'signed',
+            result: APPROVAL_RESULTS[error.code],
+            ...(error.tokenId ? { tokenId: error.tokenId } : {}),
+            ...(error.by ? { by: error.by } : {}),
+          };
+        }
         await audit(refused ? 'refused' : 'failed', {
           error: { code: payload.error.code, message: payload.error.message },
           ...(error instanceof StalePreviewError
@@ -285,6 +352,24 @@ function showState(state: PreviewState, redact: boolean): Record<string, unknown
     records,
     ...(state.truncated ? { truncated: true } : {}),
     note: 'A confirm with this previewId is refused with stale_preview if these records change before it is applied.',
+  };
+}
+
+const APPROVAL_RESULTS: Record<ApprovalError['code'], AuditApproval['result']> = {
+  approval_required: 'missing',
+  approval_invalid: 'invalid',
+  approval_expired: 'expired',
+  approval_mismatch: 'mismatch',
+  approval_replayed: 'replayed',
+};
+
+/** What a preview's audit entry keeps of its preconditions, so an approver can review it later. */
+function auditState(state: PreviewState, redact: boolean): NonNullable<AuditEntry['preconditions']> {
+  return {
+    stateId: state.stateId,
+    recordCount: state.recordCount,
+    records: redact ? (redactPersonalData(state.records) as PreviewState['records']) : state.records,
+    ...(state.truncated ? { truncated: true } : {}),
   };
 }
 

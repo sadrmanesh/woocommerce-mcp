@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/server';
 
+import { ApprovalVerifier } from './approval.js';
 import { createAuditLog, type AuditLog } from './audit.js';
 import { type AppConfig, clientOptions } from './config.js';
 import { registerPrompts } from './prompts.js';
@@ -23,11 +24,17 @@ const INSTRUCTIONS = [
   'Recent webhook deliveries are readable with woocommerce_list_webhook_events and the woocommerce://stores/{store}/events resources.',
 ].join(' ');
 
+/** Added to the instructions when WOOCOMMERCE_APPROVAL_SECRET is set. */
+const APPROVAL_INSTRUCTIONS =
+  'This server requires a signed approval for every write. After the user reviews a confirmation_required preview, they approve its previewId outside this conversation and give you an approval token. Call the tool again with the same arguments, confirm: true, the previewId, and approval set to that token. You cannot create an approval yourself, so never try. If the confirm fails with approval_expired, approval_mismatch, approval_replayed, or stale_preview, request a fresh preview and ask the user for a new approval.';
+
 export interface RuntimeOptions {
   audit?: AuditLog;
   hooks?: ClientHooks;
   scopesEnforced?: boolean;
   events?: WebhookEventStore;
+  /** Clock for approval tokens, in Unix seconds. For tests. */
+  approvalNow?: () => number;
 }
 
 /** Builds one client per configured store plus the shared tool runtime. */
@@ -40,6 +47,14 @@ export function createRuntime(config: AppConfig, options: RuntimeOptions = {}): 
     defaultStore: config.defaultStore,
     defaultPerPage: config.defaultPerPage,
     requireConfirmation: config.requireConfirmation,
+    approval:
+      config.approvalSecret === null
+        ? null
+        : new ApprovalVerifier({
+            secret: config.approvalSecret,
+            maxTtlSeconds: config.approvalTtlSeconds,
+            ...(options.approvalNow ? { now: options.approvalNow } : {}),
+          }),
     audit: options.audit ?? createAuditLog(config.auditLog),
     scopesEnforced: options.scopesEnforced ?? config.httpAuth !== null,
     tools: config.tools,
@@ -53,7 +68,8 @@ export interface CreateServerOptions {
 }
 
 export function createServer(options: CreateServerOptions): McpServer {
-  const server = new McpServer({ name: 'woocommerce-mcp', version: VERSION }, { instructions: INSTRUCTIONS });
+  const instructions = options.runtime.approval === null ? INSTRUCTIONS : `${INSTRUCTIONS} ${APPROVAL_INSTRUCTIONS}`;
+  const server = new McpServer({ name: 'woocommerce-mcp', version: VERSION }, { instructions });
   registerTools(server, options.runtime);
   registerResources(server, options.runtime);
   registerPrompts(server);

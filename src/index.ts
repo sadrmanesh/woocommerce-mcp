@@ -5,6 +5,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 
+import { askOnTerminal, runApprove } from './approve-cli.js';
 import { authWarnings, loadConfig, publicStoreLabel } from './config.js';
 import { loadEnvFile } from './env-file.js';
 import { startHttpServer } from './http.js';
@@ -86,7 +87,22 @@ function runningAsCli(): boolean {
   }
 }
 
-if (runningAsCli()) {
+if (runningAsCli() && process.argv[2] === 'approve') {
+  // Out-of-band signer: never started by an MCP client, never serves tools.
+  loadEnvFile(process.env, resolve(process.cwd(), '.env'));
+  runApprove(process.argv.slice(3), process.env, {
+    out: (text) => process.stdout.write(text),
+    err: (text) => process.stderr.write(`${text}\n`),
+    ask: process.stdin.isTTY ? askOnTerminal : null,
+  })
+    .then((code) => {
+      process.exitCode = code;
+    })
+    .catch((error: unknown) => {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 2;
+    });
+} else if (runningAsCli()) {
   main().catch((error: unknown) => {
     console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
@@ -98,6 +114,8 @@ export { loadConfig, authWarnings, publicStoreLabel } from './config.js';
 export type { AppConfig, StoreConfig } from './config.js';
 export { createRuntime, createServer } from './server.js';
 export { createAuditLog, memoryAuditLog } from './audit.js';
-export type { AuditEntry, AuditLog } from './audit.js';
+export { ApprovalError, ApprovalVerifier, signApproval } from './approval.js';
+export type { ApprovalClaims, SignApprovalOptions } from './approval.js';
+export type { AuditApproval, AuditEntry, AuditLog } from './audit.js';
 export type { Runtime } from './tools/context.js';
 export { WooCommerceClient } from './woocommerce/client.js';

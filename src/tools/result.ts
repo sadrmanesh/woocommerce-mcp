@@ -1,5 +1,7 @@
 import type { CallToolResult } from '@modelcontextprotocol/server';
 
+import { ApprovalError } from '../approval.js';
+
 import {
   ForbiddenError,
   InputError,
@@ -55,7 +57,8 @@ export function serializeError(error: unknown): ErrorPayload {
     error instanceof ForbiddenError ||
     error instanceof PreviewMismatchError ||
     error instanceof UnknownStoreError ||
-    error instanceof ToolDisabledError
+    error instanceof ToolDisabledError ||
+    error instanceof ApprovalError
   ) {
     return { error: { message: error.message, code: error.code } };
   }
