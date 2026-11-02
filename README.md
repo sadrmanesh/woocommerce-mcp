@@ -20,6 +20,7 @@ It runs locally over stdio, or as a remote service over streamable HTTP with bea
 Listed on the [official MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.sadrmanesh/woocommerce-mcp) as `io.github.sadrmanesh/woocommerce-mcp`, on [Glama](https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp), and on [mcpservers.org](https://mcpservers.org/servers/sadrmanesh/woocommerce-mcp).
 
 <a href="https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp"><img width="380" height="200" src="https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp/badges/card.svg" alt="woocommerce-mcp MCP server on Glama" /></a>
+[![WooCommerce MCP on mcprush](https://mcprush.com/badge/sadrmanesh-woocommerce-mcp/score.svg)](https://mcprush.com/to/sadrmanesh-woocommerce-mcp?ref=badge)
 
 ## Contents
 
