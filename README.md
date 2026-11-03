@@ -23,7 +23,7 @@ Listed on the [official MCP Registry](https://registry.modelcontextprotocol.io/v
 
 <a href="https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp"><img width="380" height="200" src="https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp/badges/card.svg" alt="woocommerce-mcp MCP server on Glama" /></a>
 [![WooCommerce MCP server](https://mcprush.com/badge/sadrmanesh-woocommerce-mcp/card.svg)](https://mcprush.com/to/sadrmanesh-woocommerce-mcp?ref=badge)
-
+[![M8ven Score](https://m8ven.ai/badge/mcp/sadrmanesh-woocommerce-mcp-zeyvqe?v=011258268346013495085b0c0e7959a8)](https://m8ven.ai/mcp/sadrmanesh-woocommerce-mcp-zeyvqe?s=readme)
 ## Contents
 
 - [Highlights](#highlights)
