@@ -10,6 +10,7 @@
 [![Glama MCP server score](https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp/badges/score.svg)](https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp)
 [![Listed on mcpservers.org](https://mcpservers.org/badge.svg)](https://mcpservers.org/servers/sadrmanesh/woocommerce-mcp)
 [![WooCommerce MCP on mcprush](https://mcprush.com/badge/sadrmanesh-woocommerce-mcp/score.svg)](https://mcprush.com/to/sadrmanesh-woocommerce-mcp?ref=badge)
+[![M8ven Score](https://m8ven.ai/badge/mcp/sadrmanesh/woocommerce-mcp)](https://m8ven.ai/mcp/sadrmanesh/woocommerce-mcp?s=readme)
 [![M8ven Verified](https://m8ven.ai/api/agent-verify/badge?score=96)](https://m8ven.ai/verified/verify?id=f58581335a6550fa)
 
 A [Model Context Protocol](https://modelcontextprotocol.io) server for running one or more WooCommerce stores through the WooCommerce REST API. MCP clients can browse the catalog, work through and fulfill orders, issue refunds, adjust prices and stock in bulk, run promotions, segment customers, react to webhooks, and read sales analytics. Every change is previewed before it is applied and can be written to an audit log.
