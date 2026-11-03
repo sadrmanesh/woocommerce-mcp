@@ -114,6 +114,10 @@ npx -y @sadrmanesh/woocommerce-mcp
 
 </div>
 
+## Technical report
+
+[Technical Report: WooCommerce Model Context Protocol Server - A Multi-Store, Previewed Safe-Write Architecture for Autonomous AI Agents in E-Commerce](https://doi.org/10.5281/zenodo.23897615). M. N. Sadrmanesh, Zenodo, 2026. DOI: [10.5281/zenodo.23897615](https://doi.org/10.5281/zenodo.23897615)
+
 ## License
 
 MIT. Copyright (c) 2026 Naser Sadrmanesh.

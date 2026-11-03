@@ -281,6 +281,24 @@ The full documentation site is at <https://sadrmanesh.github.io/woocommerce-mcp/
 - [Observability](docs/observability.md)
 - [Changelog](CHANGELOG.md)
 
+## Technical report
+
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23897615.svg)](https://doi.org/10.5281/zenodo.23897615)
+
+Technical Report: WooCommerce Model Context Protocol Server - A Multi-Store, Previewed Safe-Write Architecture for Autonomous AI Agents in E-Commerce. M. N. Sadrmanesh, Zenodo, 2026. <https://doi.org/10.5281/zenodo.23897615> Also on [ResearchGate](https://www.researchgate.net/publication/417364640) and [Academia.edu](https://www.academia.edu/180086604).
+
+```bibtex
+@techreport{sadrmanesh2026woocommercemcp,
+  author      = {Sadrmanesh, Mohammad Naser},
+  title       = {Technical Report: WooCommerce Model Context Protocol Server - A Multi-Store, Previewed Safe-Write Architecture for Autonomous AI Agents in E-Commerce},
+  institution = {Zenodo},
+  year        = {2026},
+  version     = {1.0},
+  doi         = {10.5281/zenodo.23897615},
+  url         = {https://doi.org/10.5281/zenodo.23897615}
+}
+```
+
 ## License
 
 MIT. Copyright (c) 2026 Naser Sadrmanesh. See [LICENSE](LICENSE).
