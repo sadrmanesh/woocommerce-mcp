@@ -9,6 +9,7 @@ copyright: Copyright &copy; 2026 Naser Sadrmanesh
 
 theme:
   name: material
+  custom_dir: overrides
   language: en
   icon:
     logo: material/storefront-outline
