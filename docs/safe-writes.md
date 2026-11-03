@@ -94,7 +94,7 @@ The audit log records it as `refused`, with `previewMatch: true`, `stateMatch: f
 
 - **Covered:** a change to any record the preview read, through its `date_modified` or one of the fingerprinted fields, a record that appeared in or disappeared from a read, and a plan that no longer writes at all.
 - **Not covered:** changes in the store that the write was not computed from. Tools that write without reading, such as `woocommerce_update_order_status` or `woocommerce_create_product`, have no state part and behave as in 0.4.0.
-- **Not a lock.** WooCommerce's REST API has no conditional writes, so a change that lands in the short gap between the server's check and its write is not detected. The check narrows the window from "whenever the user approves" to milliseconds; it does not close it.
+- **Not a lock.** WooCommerce's REST API has no conditional writes, so a change that lands in the short gap between the server's check and its write is not detected. The check narrows the window from "whenever the user approves" to milliseconds; it does not close it. Treat `stale_preview` as protection against a preview that went stale while it waited for approval, not as concurrency control. If you need a strict guarantee, keep other systems from editing the same records while a confirmed write runs.
 - **Opt-in per call.** A confirm without `previewId`, or with a one-part id from 0.4.0, is not checked for staleness. Clients that want the guarantee should always send the `previewId` they received.
 - Only the first write a tool plans is previewed. Tools that make several requests, such as `woocommerce_fulfill_order`, are checked against the data read before that first write.
 
