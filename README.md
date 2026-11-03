@@ -5,6 +5,7 @@
 ![Node.js](https://img.shields.io/badge/node-%3E%3D20-339933)
 [![Docs](https://img.shields.io/badge/docs-sadrmanesh.github.io-7e57c2)](https://sadrmanesh.github.io/woocommerce-mcp/)
 [![npm](https://img.shields.io/npm/v/@sadrmanesh/woocommerce-mcp)](https://www.npmjs.com/package/@sadrmanesh/woocommerce-mcp)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23897615.svg)](https://doi.org/10.5281/zenodo.23897615)
 [![MCP Registry](https://img.shields.io/badge/MCP%20Registry-io.github.sadrmanesh%2Fwoocommerce--mcp-0a7d5a)](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.sadrmanesh/woocommerce-mcp)
 [![Glama MCP server score](https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp/badges/score.svg)](https://glama.ai/mcp/servers/sadrmanesh/woocommerce-mcp)
 [![Listed on mcpservers.org](https://mcpservers.org/badge.svg)](https://mcpservers.org/servers/sadrmanesh/woocommerce-mcp)
