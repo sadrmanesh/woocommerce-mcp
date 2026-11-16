@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "woocommerce": {
+      "command": "npx",
+      "args": ["-y", "@sadrmanesh/woocommerce-mcp"],
+      "env": {
+        "WOOCOMMERCE_URL": "https://your-store.example.com",
+        "WOOCOMMERCE_CONSUMER_KEY": "ck_...",
+        "WOOCOMMERCE_CONSUMER_SECRET": "cs_..."
+      }
+    }
+  }
+}
